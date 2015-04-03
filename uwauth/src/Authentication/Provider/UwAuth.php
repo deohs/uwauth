@@ -9,18 +9,16 @@ namespace Drupal\uwauth\Authentication\Provider;
 
 use Drupal\Component\Utility\String;
 use Drupal\Core\Authentication\AuthenticationProviderInterface;
-use Drupal\Core\Authentication\AuthenticationProviderChallengeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\user\UserAuthInterface;
 use Drupal\Core\Session\SessionConfigurationInterface;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
  * Shibboleth and UW Groups authentication provider.
  */
-class UwAuth implements AuthenticationProviderInterface, AuthenticationProviderChallengeInterface {
+class UwAuth implements AuthenticationProviderInterface {
 
   /**
    * The config factory.
@@ -59,6 +57,8 @@ class UwAuth implements AuthenticationProviderInterface, AuthenticationProviderC
    *   The user authentication service.
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager service.
+   * @param \Drupal\Core\Session\SessionConfigurationInterface $session_configuration
+   *   The session configuration.
    */
   public function __construct(ConfigFactoryInterface $config_factory, UserAuthInterface $user_auth, EntityManagerInterface $entity_manager, SessionConfigurationInterface $session_configuration) {
     $this->configFactory = $config_factory;
@@ -73,11 +73,12 @@ class UwAuth implements AuthenticationProviderInterface, AuthenticationProviderC
   public function applies(Request $request) {
     $username = $request->headers->get('PHP_AUTH_USER');
 
+    // Skip auth if no Shib username, or we already have a Drupal session. 
     if ($this->sessionConfiguration->hasSession($request) && isset($username)) {
       return FALSE;
-    } elseif (($this->sessionConfiguration->hasSession($request) !== TRUE) && isset($username)) {
+    } elseif (!$this->sessionConfiguration->hasSession($request) && isset($username)) {
       return TRUE;
-    } elseif ($this->sessionConfiguration->hasSession($request) && (isset($username) !== TRUE)) {
+    } elseif ($this->sessionConfiguration->hasSession($request) && !isset($username)) {
       return FALSE;
     }
   }
@@ -90,19 +91,11 @@ class UwAuth implements AuthenticationProviderInterface, AuthenticationProviderC
     $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username, 'status' => 1));
     $account = reset($accounts);
     if ($account) {
-      // $uid = $account->id();
-      // return $this->entityManager->getStorage('user')->load($uid);
+      // Immediately refresh after generating session. This will let Drupal's cookie provider take over auth.
       user_login_finalize($account);
       header("Refresh: 0");
     }
     return [];
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function challengeException(Request $request, \Exception $previous) {
-    return new UnauthorizedHttpException(401, 'No authentication credentials provided.', $previous);
   }
 
 }
