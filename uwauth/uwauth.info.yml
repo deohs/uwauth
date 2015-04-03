@@ -1,0 +1,8 @@
+name: 'UW Authentication'
+type: module
+description: 'Provides authentication with Shibboleth and UW Groups'
+package: Web services
+version: '8.0.0-beta9'
+core: '8.x'
+project: 'drupal'
+datestamp: 1427300653
