@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Provides an HTTP Basic authentication provider.
+ * A Shibboleth and UW Groups authentication module. 
  */
 
 use Drupal\Core\Routing\RouteMatchInterface;
@@ -15,7 +15,7 @@ function uwauth_help($route_name, RouteMatchInterface $route_match) {
     case 'help.page.uwauth':
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('Implements support for UW Weblogin with UW Groups') . '</p>';
+      $output .= '<p>' . t('Implements support for Shibboleth with UW Groups') . '</p>';
       return $output;
   }
 }

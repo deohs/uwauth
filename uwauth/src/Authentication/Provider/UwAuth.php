@@ -84,11 +84,7 @@ class UwAuth implements AuthenticationProviderInterface, AuthenticationProviderC
    * {@inheritdoc}
    */
   public function challengeException(Request $request, \Exception $previous) {
-    $site_name = $this->configFactory->get('system.site')->get('name');
-    $challenge = String::format('Basic realm="@realm"', array(
-      '@realm' => !empty($site_name) ? $site_name : 'Access restricted',
-    ));
-    return new UnauthorizedHttpException($challenge, 'No authentication credentials provided.', $previous);
+    return new UnauthorizedHttpException(401, 'No authentication credentials provided.', $previous);
   }
 
 }
