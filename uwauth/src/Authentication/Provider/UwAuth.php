@@ -13,11 +13,12 @@ use Drupal\Core\Authentication\AuthenticationProviderChallengeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\user\UserAuthInterface;
+use Drupal\Core\Session\SessionConfigurationInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
- * HTTP Basic authentication provider.
+ * Shibboleth and UW Groups authentication provider.
  */
 class UwAuth implements AuthenticationProviderInterface, AuthenticationProviderChallengeInterface {
 
@@ -43,7 +44,14 @@ class UwAuth implements AuthenticationProviderInterface, AuthenticationProviderC
   protected $entityManager;
 
   /**
-   * Constructs a HTTP basic authentication provider object.
+   * The session configuration.
+   *
+   * @var \Drupal\Core\Session\SessionConfigurationInterface
+   */
+  protected $sessionConfiguration;
+
+  /**
+   * Constructs a UW authentication provider object.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
@@ -52,10 +60,11 @@ class UwAuth implements AuthenticationProviderInterface, AuthenticationProviderC
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager service.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, UserAuthInterface $user_auth, EntityManagerInterface $entity_manager) {
+  public function __construct(ConfigFactoryInterface $config_factory, UserAuthInterface $user_auth, EntityManagerInterface $entity_manager, SessionConfigurationInterface $session_configuration) {
     $this->configFactory = $config_factory;
     $this->userAuth = $user_auth;
     $this->entityManager = $entity_manager;
+    $this->sessionConfiguration = $session_configuration;
   }
 
   /**
@@ -63,7 +72,14 @@ class UwAuth implements AuthenticationProviderInterface, AuthenticationProviderC
    */
   public function applies(Request $request) {
     $username = $request->headers->get('PHP_AUTH_USER');
-    return isset($username);
+
+    if ($this->sessionConfiguration->hasSession($request) && isset($username)) {
+      return FALSE;
+    } elseif (($this->sessionConfiguration->hasSession($request) !== TRUE) && isset($username)) {
+      return TRUE;
+    } elseif ($this->sessionConfiguration->hasSession($request) && (isset($username) !== TRUE)) {
+      return FALSE;
+    }
   }
 
   /**

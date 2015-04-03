@@ -1,7 +1,7 @@
 services:
   authentication.uwauth:
     class: Drupal\uwauth\Authentication\Provider\UwAuth
-    arguments: ['@config.factory', '@user.auth', '@entity.manager']
+    arguments: ['@config.factory', '@user.auth', '@entity.manager', '@session_configuration']
     tags:
       - { name: authentication_provider, priority: 100 }
   uwauth.page_cache_request_policy.disallow_uwauth_requests:
