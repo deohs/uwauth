@@ -90,8 +90,10 @@ class UwAuth implements AuthenticationProviderInterface, AuthenticationProviderC
     $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username, 'status' => 1));
     $account = reset($accounts);
     if ($account) {
-      $uid = $account->id();
-      return $this->entityManager->getStorage('user')->load($uid);
+      // $uid = $account->id();
+      // return $this->entityManager->getStorage('user')->load($uid);
+      user_login_finalize($account);
+      header("Refresh: 0");
     }
     return [];
   }
