@@ -50,15 +50,15 @@ class UwAuth implements AuthenticationProviderInterface {
    * {@inheritdoc}
    */
   public function applies(Request $request) {
-    $username = $request->headers->get('PHP_AUTH_USER');
-
-    // Skip auth if no Shib username, or we already have a Drupal session. 
-    if ($this->sessionConfiguration->hasSession($request) && isset($username)) {
+    $username = $request->server->get('REMOTE_USER');
+    $shib_session_id = $request->server->get('Shib-Session-ID');
+    // We only handle requests with Shibboleth supplied usernames, that don't have Drupal sessions
+    if ($this->sessionConfiguration->hasSession($request) && isset($username) && isset($shib_session_id)) {
       return FALSE;
-    } elseif (!$this->sessionConfiguration->hasSession($request) && isset($username)) {
+    } elseif ($this->sessionConfiguration->hasSession($request) && !isset($username) && !isset($shib_session_id)) {
+      return FALSE;
+    } elseif (!$this->sessionConfiguration->hasSession($request) && isset($username) && isset($shib_session_id)) {
       return TRUE;
-    } elseif ($this->sessionConfiguration->hasSession($request) && !isset($username)) {
-      return FALSE;
     }
   }
 
@@ -66,9 +66,8 @@ class UwAuth implements AuthenticationProviderInterface {
    * {@inheritdoc}
    */
   public function authenticate(Request $request) {
-    $username = $request->headers->get('PHP_AUTH_USER');
-    $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username, 'status' => 1));
-    $account = reset($accounts);
+    $username = $request->server->get('REMOTE_USER');
+    $account = reset($this->entityManager->getStorage('user')->loadByProperties(array('name' => $username)));
     if ($account) {
       // Immediately refresh after generating session. This will let Drupal's cookie provider take over auth.
       user_login_finalize($account);
@@ -77,12 +76,11 @@ class UwAuth implements AuthenticationProviderInterface {
       // User entity doesn't exist, so create it, and immediately login
       $user = User::create(array(
         'name' => $username,
+        'mail' => $username.'@uw.edu',
+        'status' => 1
       ));
       $user->save();
-      $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username));
-      $account = reset($accounts);
-      $account->activate();
-      $account->save();
+      $account = reset($this->entityManager->getStorage('user')->loadByProperties(array('name' => $username)));
       user_login_finalize($account);
       header("Refresh: 0");
     }
