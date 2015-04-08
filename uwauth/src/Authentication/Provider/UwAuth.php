@@ -59,6 +59,8 @@ class UwAuth implements AuthenticationProviderInterface {
       return FALSE;
     } elseif (!$this->sessionConfiguration->hasSession($request) && isset($username) && isset($shib_session_id)) {
       return TRUE;
+    } else {
+      return FALSE;
     }
   }
 
@@ -68,13 +70,15 @@ class UwAuth implements AuthenticationProviderInterface {
   public function authenticate(Request $request) {
     $username = $request->server->get('REMOTE_USER');
     $account = reset($this->entityManager->getStorage('user')->loadByProperties(array('name' => $username)));
+
+    // Create account if necessary, and log them in
+    // After logon, force a refresh. This will let Drupal's cookie provider take over authentication.
     if ($account) {
-      // Immediately refresh after generating session. This will let Drupal's cookie provider take over auth.
-      $this->sync_roles($account,$username);
+      $this->sync_roles($account);
       user_login_finalize($account);
       header("Refresh: 0");
+      return $account;
     } else {
-      // User entity doesn't exist, so create it, and immediately login
       $user = User::create(array(
         'name' => $username,
         'mail' => $username.'@uw.edu',
@@ -82,9 +86,10 @@ class UwAuth implements AuthenticationProviderInterface {
       ));
       $user->save();
       $account = reset($this->entityManager->getStorage('user')->loadByProperties(array('name' => $username)));
-      $this->sync_roles($account,$username);
+      $this->sync_roles($account);
       user_login_finalize($account);
       header("Refresh: 0");
+      return $account;
     }
     return [];
   }
@@ -94,13 +99,11 @@ class UwAuth implements AuthenticationProviderInterface {
    *
    * @param $account
    *   A user object.
-   * @param $username
-   *   An authenticated username.
    */
-  private function sync_roles($account, $username) {
+  private function sync_roles($account) {
     $roles_existing = user_role_names(TRUE);
     $roles_assigned = $account->getRoles(TRUE);
-    $uwgws_groups = $this->fetch_uwgroups($username);
+    $uwgws_groups = $this->fetch_uwgroups($account);
 
     // Remove from roles they are no longer assigned to
     foreach($roles_assigned as $rid_assigned => $role_assigned) {
@@ -122,10 +125,12 @@ class UwAuth implements AuthenticationProviderInterface {
   /**
    * Fetch group membership from UW Groups
    *
-   * @param $username
-   *   An authenticated username.
+   * @param $account
+   *   A user object.
    */
-  private function fetch_uwgroups($username) {
+  private function fetch_uwgroups($account) {
+    $username = $account->getUsername();
+
     // UW CA cert base path
     $uwca_path = '/etc/ssl/';
 
@@ -145,7 +150,7 @@ class UwAuth implements AuthenticationProviderInterface {
     $uwgws_response = curl_exec($uwgws);
     curl_close($uwgws);
 
-    // Extract groups from XML feed
+    // Extract groups from response 
     $uwgws_feed = simplexml_load_string(str_replace('xmlns=', 'ns=', $uwgws_response));
     $uwgws_entries = $uwgws_feed->xpath("//a[@class='name']");
     $uwgws_groups = array();
