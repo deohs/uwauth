@@ -98,11 +98,6 @@ class UwAuth implements AuthenticationProviderInterface {
    *   An authenticated username.
    */
   private function sync_roles($account, $username) {
-    // $account->addRole('test_editor');
-    // $account->removeRole('test_editor');
-    // $account->save();
-    // user_roles(TRUE);
-
     $roles_existing = user_role_names(TRUE);
     $roles_assigned = $account->getRoles(TRUE);
     $uwgws_groups = $this->fetch_uwgroups($username);
@@ -141,15 +136,10 @@ class UwAuth implements AuthenticationProviderInterface {
     $uwgws = curl_init();
     curl_setopt_array($uwgws, array(
                                 CURLOPT_RETURNTRANSFER => TRUE,
-                                CURLOPT_HEADER         => FALSE,
-                                CURLOPT_BINARYTRANSFER => FALSE,
                                 CURLOPT_FOLLOWLOCATION => TRUE,
-                                CURLOPT_SSL_VERIFYHOST => TRUE,
-                                CURLOPT_SSL_VERIFYPEER => TRUE,
                                 CURLOPT_SSLCERT        => $uwca_path.'ehrt_uwca_cert.pem',
                                 CURLOPT_SSLKEY         => $uwca_path.'ehrt_uwca_key.pem',
                                 CURLOPT_CAINFO         => $uwca_path.'ehrt_uwca_ca.pem',
-                                CURLOPT_VERBOSE        => FALSE,
                                 CURLOPT_URL            => $uwgws_url,
                                 ));
     $uwgws_response = curl_exec($uwgws);
@@ -159,8 +149,8 @@ class UwAuth implements AuthenticationProviderInterface {
     $uwgws_feed = simplexml_load_string(str_replace('xmlns=', 'ns=', $uwgws_response));
     $uwgws_entries = $uwgws_feed->xpath("//a[@class='name']");
     $uwgws_groups = array();
-    while (list( , $node) = each($uwgws_entries)) {
-      $uwgws_groups[] = (string)$node[0];
+    foreach($uwgws_entries as $uwgws_entry) {
+      $uwgws_groups[] = (string)$uwgws_entry[0];
     }
 
     return $uwgws_groups;
