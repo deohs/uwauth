@@ -132,7 +132,7 @@ class UwAuth implements AuthenticationProviderInterface {
     $username = $account->getUsername();
 
     // UW CA cert base path
-    $uwca_path = '/etc/ssl/';
+    $uwca_path = '/etc/ssl/drupal_uwca';
 
     // UW GWS URL
     $uwgws_url = 'https://iam-ws.u.washington.edu/group_sws/v1/search?member=' . $username . '&type=effective&scope=all';
@@ -142,9 +142,9 @@ class UwAuth implements AuthenticationProviderInterface {
     curl_setopt_array($uwgws, array(
                                 CURLOPT_RETURNTRANSFER => TRUE,
                                 CURLOPT_FOLLOWLOCATION => TRUE,
-                                CURLOPT_SSLCERT        => $uwca_path.'ehrt_uwca_cert.pem',
-                                CURLOPT_SSLKEY         => $uwca_path.'ehrt_uwca_key.pem',
-                                CURLOPT_CAINFO         => $uwca_path.'ehrt_uwca_ca.pem',
+                                CURLOPT_SSLCERT        => $uwca_path.'_cert.pem',
+                                CURLOPT_SSLKEY         => $uwca_path.'_key.pem',
+                                CURLOPT_CAINFO         => $uwca_path.'_ca.pem',
                                 CURLOPT_URL            => $uwgws_url,
                                 ));
     $uwgws_response = curl_exec($uwgws);
