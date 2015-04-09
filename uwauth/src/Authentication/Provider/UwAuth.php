@@ -53,11 +53,7 @@ class UwAuth implements AuthenticationProviderInterface {
     $username = $request->server->get('REMOTE_USER');
     $shib_session_id = $request->server->get('Shib-Session-ID');
     // We only handle requests with Shibboleth supplied usernames, that don't have Drupal sessions
-    if ($this->sessionConfiguration->hasSession($request) && isset($username) && isset($shib_session_id)) {
-      return FALSE;
-    } elseif ($this->sessionConfiguration->hasSession($request) && !isset($username) && !isset($shib_session_id)) {
-      return FALSE;
-    } elseif (!$this->sessionConfiguration->hasSession($request) && isset($username) && isset($shib_session_id)) {
+    if (!$this->sessionConfiguration->hasSession($request) && isset($username) && isset($shib_session_id)) {
       return TRUE;
     } else {
       return FALSE;
