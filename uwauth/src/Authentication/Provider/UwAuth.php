@@ -156,4 +156,38 @@ class UwAuth implements AuthenticationProviderInterface {
 
     return $uwgws_groups;
   }
+
+  /**
+   * Fetch group membership from Active Directory
+   *
+   * @param $account
+   *   A user object.
+   */
+  private function fetch_adgroups($account) {
+    $username = $account->getUsername();
+
+    // LDAP Server URI
+    $ldap_uri = "ldap://services.deohs.washington.edu";
+
+    // Base DN
+    $base_dn = "DC=deohs,DC=washington,DC=edu";
+
+    // Search Filter
+    $search_filter = "(sAMAccountName=" . $username . ")";
+
+    // Query Active Directory for user, and fetch group membership
+    $ad_conn = ldap_connect($ldap_uri);
+    $ad_search = ldap_search($ad_conn, $base_dn, $search_filter, array("memberOf"));
+    $ad_search_results = ldap_get_entries($ad_conn, $ad_search);
+
+    // Extract group names from DNs
+    $ad_groups = array();
+    foreach($ad_search_results[0]["memberof"] as $entry) {
+      if(preg_match("/^CN=([a-zA-Z0-9_\- ]+)/", $entry, $matches)) {
+      $ad_groups[] = (string)$matches[1];
+      }
+    }
+
+    return $ad_groups;
+  }
 }
