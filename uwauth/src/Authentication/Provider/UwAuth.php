@@ -91,7 +91,7 @@ class UwAuth implements AuthenticationProviderInterface {
   }
 
   /**
-   * Synchronize roles with UW Groups
+   * Synchronize roles with UW Groups or Active Directory
    *
    * @param $account
    *   A user object.
@@ -99,23 +99,51 @@ class UwAuth implements AuthenticationProviderInterface {
   private function sync_roles($account) {
     $roles_existing = user_role_names(TRUE);
     $roles_assigned = $account->getRoles(TRUE);
-    $uwgws_groups = $this->fetch_uwgroups($account);
+    $mapped_roles = $this->map_groups_roles($account);
 
     // Remove from roles they are no longer assigned to
     foreach($roles_assigned as $rid_assigned => $role_assigned) {
-      if (!in_array($role_assigned, $uwgws_groups)) {
+      if (!in_array($role_assigned, $mapped_roles)) {
         $account->removeRole($role_assigned);
       }
     }
 
     // Add to newly assigned roles
-    foreach ($uwgws_groups as $uwgroup) {
-      if (in_array($uwgroup, $roles_existing)) {
-        $account->addRole($uwgroup);
+    foreach ($mapped_roles as $mapped) {
+      if (in_array($mapped, $roles_existing)) {
+        $account->addRole($mapped);
       }
     }
 
     $account->save();    
+  }
+
+  /**
+   * Map UW Groups or AD group membership to roles
+   *
+   * @param $account
+   *   A user object.
+   */
+  private function map_groups_roles($account) {
+    $group_membership = $this->fetch_gws_groups($account);
+    // $group_membership = $this->fetch_ad_groups($account);
+
+    // Example group to role map
+    $group_role_map = array(
+                        "group1" => "role1",
+                        "group2" => "role2",
+                        "group3" => "role3"
+                      );
+
+    // Loop through group list, and extract matching roles
+    $mapped_roles = array();
+    foreach ($group_membership as $group) {
+      if (array_key_exists($group, $group_role_map)) {
+        $mapped_roles[] = (string)$group_role_map[$group];
+      }
+    }
+
+    return $mapped_roles;
   }
 
   /**
@@ -124,7 +152,7 @@ class UwAuth implements AuthenticationProviderInterface {
    * @param $account
    *   A user object.
    */
-  private function fetch_uwgroups($account) {
+  private function fetch_gws_groups($account) {
     $username = $account->getUsername();
 
     // UW CA cert base path
@@ -163,7 +191,7 @@ class UwAuth implements AuthenticationProviderInterface {
    * @param $account
    *   A user object.
    */
-  private function fetch_adgroups($account) {
+  private function fetch_ad_groups($account) {
     $username = $account->getUsername();
 
     // LDAP Server URI
