@@ -130,9 +130,9 @@ class UwAuth implements AuthenticationProviderInterface {
 
     // Example group to role map
     $group_role_map = array(
-                        "group1" => "role1",
-                        "group2" => "role2",
-                        "group3" => "role3"
+                        'group1' => 'role1',
+                        'group2' => 'role2',
+                        'group3' => 'role3'
                       );
 
     // Loop through group list, and extract matching roles
@@ -205,12 +205,12 @@ class UwAuth implements AuthenticationProviderInterface {
 
     // Query Active Directory for user, and fetch group membership
     $ad_conn = ldap_connect($ldap_uri);
-    $ad_search = ldap_search($ad_conn, $base_dn, $search_filter, array("memberOf"));
+    $ad_search = ldap_search($ad_conn, $base_dn, $search_filter, array('memberOf'));
     $ad_search_results = ldap_get_entries($ad_conn, $ad_search);
 
     // Extract group names from DNs
     $ad_groups = array();
-    foreach($ad_search_results[0]["memberof"] as $entry) {
+    foreach($ad_search_results[0]['memberof'] as $entry) {
       if(preg_match("/^CN=([a-zA-Z0-9_\- ]+)/", $entry, $matches)) {
       $ad_groups[] = (string)$matches[1];
       }
