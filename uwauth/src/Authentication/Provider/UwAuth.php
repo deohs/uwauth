@@ -52,8 +52,9 @@ class UwAuth implements AuthenticationProviderInterface {
   public function applies(Request $request) {
     $username = $request->server->get('REMOTE_USER');
     $shib_session_id = $request->server->get('Shib-Session-ID');
+    $group_source = \Drupal::config('uwauth.settings')->get('group.source');
     // We only handle requests with Shibboleth supplied usernames, that don't have Drupal sessions
-    if (!$this->sessionConfiguration->hasSession($request) && isset($username) && isset($shib_session_id)) {
+    if (!$this->sessionConfiguration->hasSession($request) && isset($username) && isset($shib_session_id) && !($group_source === 'none')) {
       return TRUE;
     } else {
       return FALSE;
@@ -125,8 +126,14 @@ class UwAuth implements AuthenticationProviderInterface {
    *   A user object.
    */
   private function map_groups_roles($account) {
-    $group_membership = $this->fetch_gws_groups($account);
-    // $group_membership = $this->fetch_ad_groups($account);
+    switch (\Drupal::config('uwauth.settings')->get('group.source')) {
+      case "gws":
+        $group_membership = $this->fetch_gws_groups($account);
+        break;
+      case "ad":
+        $group_membership = $this->fetch_ad_groups($account);
+        break;
+    }
 
     // Example group to role map
     $group_role_map = array(
@@ -155,8 +162,7 @@ class UwAuth implements AuthenticationProviderInterface {
   private function fetch_gws_groups($account) {
     $username = $account->getUsername();
 
-    // UW CA cert base path
-    $uwca_path = '/etc/ssl/drupal_uwca';
+    $uwauth_config = \Drupal::config('uwauth.settings');
 
     // UW GWS URL
     $uwgws_url = 'https://iam-ws.u.washington.edu/group_sws/v1/search?member=' . $username . '&type=effective&scope=all';
@@ -166,9 +172,9 @@ class UwAuth implements AuthenticationProviderInterface {
     curl_setopt_array($uwgws, array(
                                 CURLOPT_RETURNTRANSFER => TRUE,
                                 CURLOPT_FOLLOWLOCATION => TRUE,
-                                CURLOPT_SSLCERT        => $uwca_path.'_cert.pem',
-                                CURLOPT_SSLKEY         => $uwca_path.'_key.pem',
-                                CURLOPT_CAINFO         => $uwca_path.'_ca.pem',
+                                CURLOPT_SSLCERT        => $uwauth_config->get('gws.cert'),
+                                CURLOPT_SSLKEY         => $uwauth_config->get('gws.key'),
+                                CURLOPT_CAINFO         => $uwauth_config->get('gws.cacert'),
                                 CURLOPT_URL            => $uwgws_url,
                                 ));
     $uwgws_response = curl_exec($uwgws);
@@ -194,18 +200,14 @@ class UwAuth implements AuthenticationProviderInterface {
   private function fetch_ad_groups($account) {
     $username = $account->getUsername();
 
-    // LDAP Server URI
-    $ldap_uri = "ldap://services.deohs.washington.edu";
-
-    // Base DN
-    $base_dn = "DC=deohs,DC=washington,DC=edu";
+    $uwauth_config = \Drupal::config('uwauth.settings');
 
     // Search Filter
     $search_filter = "(sAMAccountName=" . $username . ")";
 
     // Query Active Directory for user, and fetch group membership
-    $ad_conn = ldap_connect($ldap_uri);
-    $ad_search = ldap_search($ad_conn, $base_dn, $search_filter, array('memberOf'));
+    $ad_conn = ldap_connect($uwauth_config->get('ad.uri'));
+    $ad_search = ldap_search($ad_conn, $uwauth_config->get('ad.basedn'), $search_filter, array('memberOf'));
     $ad_search_results = ldap_get_entries($ad_conn, $ad_search);
 
     // Extract group names from DNs

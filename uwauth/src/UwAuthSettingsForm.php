@@ -19,7 +19,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function getFormId() {
-    return 'uwauth_admin_settings';
+    return 'uwauth_settings';
   }
 
   /** 
