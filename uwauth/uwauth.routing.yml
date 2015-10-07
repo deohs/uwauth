@@ -1,0 +1,7 @@
+uwauth.settings:
+  path: '/admin/people/uwauth'
+  defaults:
+    _form: '\Drupal\uwauth\UwAuthSettingsForm'
+    _title: 'UW Auth'
+  requirements:
+    _permission: 'administer site configuration'
