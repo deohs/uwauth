@@ -1,6 +1,6 @@
-name: 'UW Authentication'
+name: 'UW Auth'
 type: module
-description: 'Provides authentication with Shibboleth and UW Groups'
+description: 'Provides authentication with Shibboleth, and UW Groups or Active Directory'
 package: Web services
-version: '0.1'
+version: '0.9'
 core: '8.x'

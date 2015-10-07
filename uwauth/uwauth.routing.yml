@@ -1,5 +1,5 @@
 uwauth.settings:
-  path: '/admin/people/uwauth'
+  path: '/admin/config/people/uwauth'
   defaults:
     _form: '\Drupal\uwauth\UwAuthSettingsForm'
     _title: 'UW Auth'

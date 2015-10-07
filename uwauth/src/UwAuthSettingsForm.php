@@ -132,6 +132,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $this->config('uwauth.settings')->set('ad.uri', $form_state->getValue('uri'));
     $this->config('uwauth.settings')->set('ad.basedn', $form_state->getValue('basedn'));
     $this->config('uwauth.settings')->set('group.map', $form_state->getValue('map'));
+    $this->config('uwauth.settings')->set('group.source', $form_state->getValue('source'));
 
     $this->config('uwauth.settings')->save();
 

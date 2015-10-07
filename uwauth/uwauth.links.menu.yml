@@ -1,0 +1,6 @@
+uwauth.settings:
+  title: 'UW Auth'
+  parent: user.admin_index
+  description: 'Configure group membership sources, and group to role maps.'
+  weight: -10
+  route_name: uwauth.settings 
