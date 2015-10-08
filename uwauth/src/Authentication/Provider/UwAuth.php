@@ -135,8 +135,8 @@ class UwAuth implements AuthenticationProviderInterface {
         break;
     }
 
+    // Group to Role maps are stored as a multi-line string, containing pipe delimited key-value pairs
     $group_role_map = array();
-
     foreach (preg_split("/((\r?\n)|(\r\n?))/", \Drupal::config('uwauth.settings')->get('group.map')) as $entry) {
       $pair = explode('|', $entry);
       $group_role_map[(string)$pair[0]] = (string)$pair[1];

@@ -13,14 +13,8 @@ filtering of what users should be created.
 The module was designed and tested using Apache with mod_shib2. Shibboleth is
 configured to expose the attribute "uwnetid" as the REMOTE_USER. 
 
-For UW GWS, it assumes that your UW CA provided certificates are located in /etc/ssl:
+In order to enable the module, go to Manage > Extend > UW Auth. Once enabled,
+go to Manage > Configuration > People > UW Auth to configure.
 
-CA Certificate /etc/ssl/drupal_uwca_ca.pem
-Certificate /etc/ssl/drupal_uwca_cert.pem
-Private Key /etc/ssl/drupal_uwca_key.pem
-
-In order to enable the module, go to Manage > Extend > UW Authentication. Once
-enabled there is no additional configuration required.
-
-For role assignment, simply create roles with names that match UW groups. When
-a user logs in, their role assignment will be updated automatically.
+Finally, if no roles are mapped (or the user isn't assigned to any), they will
+be given the role of authenticated user.
