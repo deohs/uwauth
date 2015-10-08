@@ -58,7 +58,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $form['uwauth_gws'] = array(
       '#type' => 'details',
       '#title' => t('Groups Web Service'),
-      '#description' => t('If using GWS as you group source, please provide the paths to your UW certificates. For security purposes, the certificates should be stored outside of your website root.'),
+      '#description' => t('If using GWS as your group source, please provide the paths to your UW certificates. For security purposes, the certificates should be stored outside of your website root.'),
       '#open' => TRUE,
     );
 

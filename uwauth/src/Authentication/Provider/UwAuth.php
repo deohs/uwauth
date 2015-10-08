@@ -135,12 +135,12 @@ class UwAuth implements AuthenticationProviderInterface {
         break;
     }
 
-    // Example group to role map
-    $group_role_map = array(
-                        'group1' => 'role1',
-                        'group2' => 'role2',
-                        'group3' => 'role3'
-                      );
+    $group_role_map = array();
+
+    foreach (preg_split("/((\r?\n)|(\r\n?))/", \Drupal::config('uwauth.settings')->get('group.map')) as $entry) {
+      $pair = explode('|', $entry);
+      $group_role_map[(string)$pair[0]] = (string)$pair[1];
+    }
 
     // Loop through group list, and extract matching roles
     $mapped_roles = array();
