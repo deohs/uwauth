@@ -2,6 +2,10 @@ NOTE: Module is still under active development, consider it Alpha quality. This
 readme may not reflect the current state of the module. Nor, should you assume
 that it will work at all.
 
+IMPORTANT: There is no support for federated logins. The module assumes all
+users are using UW NetID's. This functionality may change in the future, if the
+need arises for it.
+
 This module enables Drupal 8 to authenticate users using Shibboleth, and assign
 their roles based on group membership settings in Active Directory or in 
 the UW Groups Web Service.
