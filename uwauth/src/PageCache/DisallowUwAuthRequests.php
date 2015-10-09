@@ -20,7 +20,7 @@ class DisallowUwAuthRequests implements RequestPolicyInterface {
    * {@inheritdoc}
    */
   public function check(Request $request) {
-    $username = $request->headers->get('PHP_AUTH_USER');
+    $username = $request->server->get('uwnetid');
     if (isset($username)) {
       return self::DENY;
     }

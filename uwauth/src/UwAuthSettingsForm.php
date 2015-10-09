@@ -86,7 +86,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $form['uwauth_ad'] = array(
       '#type' => 'details',
       '#title' => t('Active Directory'),
-      '#description' => t('If using AD as your group source, please provide the LDAP URI and Base DN for your domain. This method assumes your AD installation enables anonymous lookups for group membership.'),
+      '#description' => t('If using AD as your group source, please provide the LDAP URI and Base DN for your domain. For anonymous lookups, leave the Bind DN and Bind Password fields blank.'),
       '#open' => TRUE,
     );
 
@@ -102,6 +102,18 @@ class UwAuthSettingsForm extends ConfigFormBase {
       '#title' => t('Base DN'),
       '#description' => t('Example: DC=example,DC=org'),
       '#default_value' => $config->get('ad.basedn'),
+    );
+
+    $form['uwauth_ad']['binddn'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Bind DN'),
+      '#description' => t('Example: CN=drupal,CN=Users,DC=example,DC=org'),
+      '#default_value' => $config->get('ad.binddn'),
+    );
+
+    $form['uwauth_ad']['bindpass'] = array(
+      '#type' => 'password',
+      '#title' => t('Bind Password'),
     );
 
     $form['uwauth_map'] = array(
@@ -131,6 +143,8 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $this->config('uwauth.settings')->set('gws.cacert', $form_state->getValue('cacert'));
     $this->config('uwauth.settings')->set('ad.uri', $form_state->getValue('uri'));
     $this->config('uwauth.settings')->set('ad.basedn', $form_state->getValue('basedn'));
+    $this->config('uwauth.settings')->set('ad.binddn', $form_state->getValue('binddn'));
+    $this->config('uwauth.settings')->set('ad.bindpass', $form_state->getValue('bindpass'));
     $this->config('uwauth.settings')->set('group.map', $form_state->getValue('map'));
     $this->config('uwauth.settings')->set('group.source', $form_state->getValue('source'));
 

@@ -207,6 +207,9 @@ class UwAuth implements AuthenticationProviderInterface {
 
     // Query Active Directory for user, and fetch group membership
     $ad_conn = ldap_connect($uwauth_config->get('ad.uri'));
+    if(($uwauth_config->get('ad.binddn') !== NULL) && ($uwauth_config->get('ad.bindpass') !== NULL)) {
+      ldap_bind($ad_conn, $uwauth_config->get('ad.binddn'), $uwauth_config->get('ad.bindpass'));
+    }
     $ad_search = ldap_search($ad_conn, $uwauth_config->get('ad.basedn'), $search_filter, array('memberOf'));
     $ad_search_results = ldap_get_entries($ad_conn, $ad_search);
 
@@ -214,7 +217,7 @@ class UwAuth implements AuthenticationProviderInterface {
     $ad_groups = array();
     foreach($ad_search_results[0]['memberof'] as $entry) {
       if(preg_match("/^CN=([a-zA-Z0-9_\- ]+)/", $entry, $matches)) {
-      $ad_groups[] = (string)$matches[1];
+        $ad_groups[] = (string)$matches[1];
       }
     }
 
