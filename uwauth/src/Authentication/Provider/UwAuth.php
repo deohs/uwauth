@@ -50,7 +50,7 @@ class UwAuth implements AuthenticationProviderInterface {
    * {@inheritdoc}
    */
   public function applies(Request $request) {
-    $username = $request->server->get('REMOTE_USER');
+    $username = $request->server->get('uwnetid');
     $shib_session_id = $request->server->get('Shib-Session-ID');
     $group_source = \Drupal::config('uwauth.settings')->get('group.source');
     // We only handle requests with Shibboleth supplied usernames, that don't have Drupal sessions
@@ -65,7 +65,7 @@ class UwAuth implements AuthenticationProviderInterface {
    * {@inheritdoc}
    */
   public function authenticate(Request $request) {
-    $username = $request->server->get('REMOTE_USER');
+    $username = $request->server->get('uwnetid');
     $account = reset($this->entityManager->getStorage('user')->loadByProperties(array('name' => $username)));
 
     // Create account if necessary, and log them in

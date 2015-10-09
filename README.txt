@@ -12,10 +12,12 @@ the UW Groups Web Service.
 
 Whenever a Shibboleth session is detected, the user is logged in as that user.
 Or, if the account doesn't exist, it'll be created automatically. There is no
-filtering of what users should be created.
+filtering of what users should be created. User accounts will be given the
+same user id, as their NetID. And, their email will be set to NETID@uw.edu.
 
 The module was designed and tested using Apache with mod_shib2. Shibboleth is
-configured to expose the attribute "uwnetid" as the REMOTE_USER. 
+configured to expose the attribute "uwnetid", which will be used as the
+visitors username. 
 
 In order to enable the module, go to Manage > Extend > UW Auth. Once enabled,
 go to Manage > Configuration > People > UW Auth to configure.
