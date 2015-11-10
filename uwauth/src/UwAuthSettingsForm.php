@@ -150,6 +150,10 @@ class UwAuthSettingsForm extends ConfigFormBase {
       $form_state->setErrorByName('cacert', t('The CA Certificate path contains invalid characters. Please try again.'));
     }
 
+    if((strlen($form_state->getValue('uri')) > 0) && (preg_match("/^(ldap:\/\/|ldaps:\/\/)[a-z0-9_\.\-]*[^_\.\-]$/i",$form_state->getValue('uri')) === 0)) {
+      $form_state->setErrorByName('uri', t('The LDAP URI contains invalid characters or formatting. Please try again.'));
+    }
+
     if((strlen($form_state->getValue('basedn')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-=, ]/",$form_state->getValue('basedn'))) {
       $form_state->setErrorByName('basedn', t('The Base DN contains invalid characters. Please try again.'));
     }
