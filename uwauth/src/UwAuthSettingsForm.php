@@ -137,6 +137,35 @@ class UwAuthSettingsForm extends ConfigFormBase {
   /** 
    * {@inheritdoc}
    */
+  public function validateForm(array &$form, FormStateInterface $form_state) {
+    if((strlen($form_state->getValue('cert')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/",$form_state->getValue('cert'))) {
+      $form_state->setErrorByName('cert', t('The Certificate path contains invalid characters. Please try again.'));
+    }
+
+    if((strlen($form_state->getValue('key')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/",$form_state->getValue('key'))) {
+      $form_state->setErrorByName('key', t('The Key path contains invalid characters. Please try again.'));
+    }
+
+    if((strlen($form_state->getValue('cacert')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/",$form_state->getValue('cacert'))) {
+      $form_state->setErrorByName('cacert', t('The CA Certificate path contains invalid characters. Please try again.'));
+    }
+
+    if((strlen($form_state->getValue('basedn')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-=, ]/",$form_state->getValue('basedn'))) {
+      $form_state->setErrorByName('basedn', t('The Base DN contains invalid characters. Please try again.'));
+    }
+
+    if((strlen($form_state->getValue('binddn')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-=, ]/",$form_state->getValue('binddn'))) {
+      $form_state->setErrorByName('binddn', t('The Bind DN contains invalid characters. Please try again.'));
+    }
+
+    if((strlen($form_state->getValue('map')) > 0) && preg_match_all("/^([^a-z0-9_\-]*\|[a-z0-9_\-]*|[a-z0-9_\-]*\|[^a-z0-9_\-]*)$/mi",$form_state->getValue('map'))) {
+      $form_state->setErrorByName('map', t('The Group Map contains invalid characters or formatting. Please try again.'));
+    }
+  }
+
+  /** 
+   * {@inheritdoc}
+   */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $this->config('uwauth.settings')->set('gws.cert', $form_state->getValue('cert'));
     $this->config('uwauth.settings')->set('gws.key', $form_state->getValue('key'));
