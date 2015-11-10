@@ -55,7 +55,12 @@ class UwAuth implements AuthenticationProviderInterface {
     $group_source = \Drupal::config('uwauth.settings')->get('group.source');
     // We only handle requests with Shibboleth supplied usernames, that don't have Drupal sessions
     if (!$this->sessionConfiguration->hasSession($request) && isset($username) && isset($shib_session_id) && !($group_source === 'none')) {
-      return TRUE;
+      // Make sure NetID is the typical personal or shared format
+      if ((strlen($username) < 1) || (strlen($username) > 8) || preg_match_all("/[^a-z0-9]/i",$username)) {
+        return FALSE;
+      } else {
+        return TRUE;
+      }
     } else {
       return FALSE;
     }
