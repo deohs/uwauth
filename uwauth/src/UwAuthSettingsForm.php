@@ -138,32 +138,41 @@ class UwAuthSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
+
+    if(($form_state->getValue('source') == "ad") && ((strlen($form_state->getValue('uri')) == 0) || (strlen($form_state->getValue('basedn')) == 0))) {
+      $form_state->setErrorByName('source', t('Active Directory requires both the URI and Base DN to be configured.'));
+    }
+
+    if(($form_state->getValue('source') == "gws") && ((strlen($form_state->getValue('cert')) == 0) || (strlen($form_state->getValue('key')) == 0) || (strlen($form_state->getValue('cacert')) == 0))) {
+      $form_state->setErrorByName('source', t('Groups Web Service requires the Certificate, Key, and CA Certificate to be configured.'));
+    }
+
     if((strlen($form_state->getValue('cert')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/",$form_state->getValue('cert'))) {
-      $form_state->setErrorByName('cert', t('The Certificate path contains invalid characters. Please try again.'));
+      $form_state->setErrorByName('cert', t('The Certificate path contains invalid characters.'));
     }
 
     if((strlen($form_state->getValue('key')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/",$form_state->getValue('key'))) {
-      $form_state->setErrorByName('key', t('The Key path contains invalid characters. Please try again.'));
+      $form_state->setErrorByName('key', t('The Key path contains invalid characters.'));
     }
 
     if((strlen($form_state->getValue('cacert')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/",$form_state->getValue('cacert'))) {
-      $form_state->setErrorByName('cacert', t('The CA Certificate path contains invalid characters. Please try again.'));
+      $form_state->setErrorByName('cacert', t('The CA Certificate path contains invalid characters.'));
     }
 
     if((strlen($form_state->getValue('uri')) > 0) && (preg_match("/^(ldap:\/\/|ldaps:\/\/)[a-z0-9_\.\-]*[^_\.\-]$/i",$form_state->getValue('uri')) === 0)) {
-      $form_state->setErrorByName('uri', t('The LDAP URI contains invalid characters or formatting. Please try again.'));
+      $form_state->setErrorByName('uri', t('The LDAP URI contains invalid characters or formatting.'));
     }
 
     if((strlen($form_state->getValue('basedn')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-=, ]/",$form_state->getValue('basedn'))) {
-      $form_state->setErrorByName('basedn', t('The Base DN contains invalid characters. Please try again.'));
+      $form_state->setErrorByName('basedn', t('The Base DN contains invalid characters.'));
     }
 
     if((strlen($form_state->getValue('binddn')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-=, ]/",$form_state->getValue('binddn'))) {
-      $form_state->setErrorByName('binddn', t('The Bind DN contains invalid characters. Please try again.'));
+      $form_state->setErrorByName('binddn', t('The Bind DN contains invalid characters.'));
     }
 
     if((strlen($form_state->getValue('map')) > 0) && preg_match_all("/^([^a-z0-9_\-]*\|[a-z0-9_\-]*|[a-z0-9_\-]*\|[^a-z0-9_\-]*)$/mi",$form_state->getValue('map'))) {
-      $form_state->setErrorByName('map', t('The Group Map contains invalid characters or formatting. Please try again.'));
+      $form_state->setErrorByName('map', t('The Group Map contains invalid characters or formatting.'));
     }
   }
 
