@@ -71,7 +71,8 @@ class UwAuth implements AuthenticationProviderInterface {
    */
   public function authenticate(Request $request) {
     $username = $request->server->get('uwnetid');
-    $account = reset($this->entityManager->getStorage('user')->loadByProperties(array('name' => $username)));
+    $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username));
+    $account = reset($accounts);
 
     // Create account if necessary, and log them in
     // After logon, force a refresh. This will let Drupal's cookie provider take over authentication.
