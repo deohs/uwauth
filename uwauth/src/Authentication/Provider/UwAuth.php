@@ -88,7 +88,8 @@ class UwAuth implements AuthenticationProviderInterface {
         'status' => 1
       ));
       $user->save();
-      $account = reset($this->entityManager->getStorage('user')->loadByProperties(array('name' => $username)));
+      $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username));
+      $account = reset($accounts);
       $this->sync_roles($account);
       user_login_finalize($account);
       header("Refresh: 0");
