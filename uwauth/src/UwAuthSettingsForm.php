@@ -114,6 +114,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $form['uwauth_ad']['bindpass'] = array(
       '#type' => 'password',
       '#title' => t('Bind Password'),
+      '#description' => t('NOTE: If a password is required, it must be entered anytime the form is submitted.'),
     );
 
     $form['uwauth_map'] = array(
