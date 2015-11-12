@@ -149,26 +149,32 @@ class UwAuthSettingsForm extends ConfigFormBase {
 
     if((strlen($form_state->getValue('cert')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/",$form_state->getValue('cert'))) {
       $form_state->setErrorByName('cert', t('The Certificate path contains invalid characters.'));
+    } elseif((strlen($form_state->getValue('cert')) > 0) && !is_readable($form_state->getValue('cert'))) {
+      $form_state->setErrorByName('cert', t('The Certificate file could not be read. Please verify the path is correct.'));
     }
 
     if((strlen($form_state->getValue('key')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/",$form_state->getValue('key'))) {
       $form_state->setErrorByName('key', t('The Key path contains invalid characters.'));
+    } elseif((strlen($form_state->getValue('key')) > 0) && !is_readable($form_state->getValue('key'))) {
+      $form_state->setErrorByName('key', t('The Key file could not be read. Please verify the path is correct.'));
     }
 
     if((strlen($form_state->getValue('cacert')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/",$form_state->getValue('cacert'))) {
       $form_state->setErrorByName('cacert', t('The CA Certificate path contains invalid characters.'));
+    } elseif((strlen($form_state->getValue('cacert')) > 0) && !is_readable($form_state->getValue('cacert'))) {
+      $form_state->setErrorByName('cacert', t('The CA Certificate file could not be read. Please verify the path is correct.'));
     }
 
-    if((strlen($form_state->getValue('uri')) > 0) && (preg_match("/^(ldap:\/\/|ldaps:\/\/)[a-z0-9_\.\-]*[^_\.\-]$/i",$form_state->getValue('uri')) === 0)) {
+    if((strlen($form_state->getValue('uri')) > 0) && (preg_match("/^(ldap:\/\/|ldaps:\/\/)[a-z0-9_\.\-]*[a-z0-9]$/i",$form_state->getValue('uri')) === 0)) {
       $form_state->setErrorByName('uri', t('The LDAP URI contains invalid characters or formatting.'));
     }
 
-    if((strlen($form_state->getValue('basedn')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-=, ]/",$form_state->getValue('basedn'))) {
-      $form_state->setErrorByName('basedn', t('The Base DN contains invalid characters.'));
+    if((strlen($form_state->getValue('basedn')) > 0) && (preg_match("/^(OU=|DC=)[a-z0-9_\-=, ]*[a-z0-9]$/i",$form_state->getValue('basedn')) === 0)) {
+      $form_state->setErrorByName('basedn', t('The Base DN contains invalid characters or formatting.'));
     }
 
-    if((strlen($form_state->getValue('binddn')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-=, ]/",$form_state->getValue('binddn'))) {
-      $form_state->setErrorByName('binddn', t('The Bind DN contains invalid characters.'));
+    if((strlen($form_state->getValue('binddn')) > 0) && (preg_match("/^CN=[a-z0-9_\-=, ]*[a-z0-9]$/i",$form_state->getValue('binddn')) === 0)) {
+      $form_state->setErrorByName('binddn', t('The Bind DN contains invalid characters or formatting.'));
     }
 
     if((strlen($form_state->getValue('map')) > 0) && preg_match_all("/^([^a-z0-9_\-]*\|[a-z0-9_\-]*|[a-z0-9_\-]*\|[^a-z0-9_\-]*)$/mi",$form_state->getValue('map'))) {
