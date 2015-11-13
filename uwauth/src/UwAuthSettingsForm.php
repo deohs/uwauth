@@ -114,7 +114,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $form['uwauth_ad']['bindpass'] = array(
       '#type' => 'password',
       '#title' => t('Bind Password'),
-      '#description' => t('NOTE: If a password is required, it must be entered anytime the form is submitted.'),
+      '#description' => t('NOTE: If a bind password has been set, leave this field blank to leave it unchanged.'),
     );
 
     $form['uwauth_map'] = array(
@@ -193,7 +193,9 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $this->config('uwauth.settings')->set('ad.uri', $form_state->getValue('uri'));
     $this->config('uwauth.settings')->set('ad.basedn', $form_state->getValue('basedn'));
     $this->config('uwauth.settings')->set('ad.binddn', $form_state->getValue('binddn'));
-    $this->config('uwauth.settings')->set('ad.bindpass', $form_state->getValue('bindpass'));
+    if(($this->config('uwauth.settings')->get('ad.bindpass') === NULL) || (strlen($form_state->getValue('bindpass')) > 0)) {
+      $this->config('uwauth.settings')->set('ad.bindpass', $form_state->getValue('bindpass'));
+    } 
     $this->config('uwauth.settings')->set('group.map', $form_state->getValue('map'));
     $this->config('uwauth.settings')->set('group.source', $form_state->getValue('source'));
 
