@@ -127,7 +127,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $form['uwauth_map']['map'] = array(
       '#type' => 'textarea',
       '#title' => t('Group Map'),
-      '#description' => t('Note: Each row corresponds to a single group to role mapping. The format is group|role.'),
+      '#description' => t('Note: Each row corresponds to a single group to role mapping. The format is group|role. All roles should be entered as their machine name.'),
       '#default_value' => $config->get('group.map'),
       '#rows' => 15,
     );

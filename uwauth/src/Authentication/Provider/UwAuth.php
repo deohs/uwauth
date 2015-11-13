@@ -105,7 +105,7 @@ class UwAuth implements AuthenticationProviderInterface {
    *   A user object.
    */
   private function sync_roles($account) {
-    $roles_existing = user_role_names(TRUE);
+    $roles_existing = user_roles(TRUE);
     $roles_assigned = $account->getRoles(TRUE);
     $mapped_roles = $this->map_groups_roles($account);
 
@@ -118,7 +118,7 @@ class UwAuth implements AuthenticationProviderInterface {
 
     // Add to newly assigned roles
     foreach ($mapped_roles as $mapped) {
-      if (in_array($mapped, $roles_existing)) {
+      if (array_key_exists($mapped, $roles_existing)) {
         $account->addRole($mapped);
       }
     }
