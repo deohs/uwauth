@@ -2,5 +2,5 @@ name: 'UW Auth'
 description: 'Provides authentication and role assignment with Shibboleth, and UW Groups or Active Directory'
 package: Web services
 type: module
-version: '0.9'
+version: '8.x-1.0'
 core: '8.x'
