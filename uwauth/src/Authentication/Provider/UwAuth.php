@@ -53,6 +53,11 @@ class UwAuth implements AuthenticationProviderInterface {
     $username = $request->server->get('uwnetid');
     $shib_session_id = $request->server->get('Shib-Session-ID');
     $group_source = \Drupal::config('uwauth.settings')->get('group.source');
+
+    // Set session to expire on browser close
+    ini_set('session.gc_maxlifetime', 3600);
+    ini_set('session.cookie_lifetime', 0);
+
     // We only handle requests with Shibboleth supplied usernames, that don't have Drupal sessions
     if (!$this->sessionConfiguration->hasSession($request) && isset($username) && isset($shib_session_id) && !($group_source === 'none')) {
       // Make sure NetID is the typical personal or shared format
