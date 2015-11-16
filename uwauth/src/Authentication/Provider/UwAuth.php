@@ -11,6 +11,7 @@ use Drupal\Component\Utility\String;
 use Drupal\Core\Authentication\AuthenticationProviderInterface;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Session\SessionConfigurationInterface;
+use Drupal\Core\Session\AccountInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Drupal\user\Entity\User;
 
@@ -57,6 +58,12 @@ class UwAuth implements AuthenticationProviderInterface {
     // Set session to expire on browser close
     ini_set('session.gc_maxlifetime', 3600);
     ini_set('session.cookie_lifetime', 0);
+
+    // Destroy sessions which don't belong to the Shibboleth authenticated user
+    $currentUser = \Drupal::currentUser()->getDisplayName();
+    if(($currentUser !== $username) && ($currentUser !== NULL) && !\Drupal::currentUser()->isAnonymous()) {
+      session_destroy();
+    }
 
     // We only handle requests with Shibboleth supplied usernames, that don't have Drupal sessions
     if (!$this->sessionConfiguration->hasSession($request) && isset($username) && isset($shib_session_id) && !($group_source === 'none')) {
