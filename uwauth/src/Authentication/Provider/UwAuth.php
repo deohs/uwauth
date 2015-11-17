@@ -61,7 +61,7 @@ class UwAuth implements AuthenticationProviderInterface {
 
     // Destroy sessions which don't belong to the Shibboleth authenticated user
     $currentUser = \Drupal::currentUser()->getDisplayName();
-    if(($currentUser !== $username) && ($currentUser !== NULL) && !\Drupal::currentUser()->isAnonymous()) {
+    if(($currentUser !== $username) && ($currentUser !== NULL) && !\Drupal::currentUser()->isAnonymous() && ($group_source !== 'none')) {
       session_destroy();
     }
 
