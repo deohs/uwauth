@@ -102,6 +102,7 @@ class UwAuth implements AuthenticationProviderInterface {
         'mail' => $username.'@uw.edu',
         'status' => 1
       ));
+      $user->setPassword(substr(password_hash(openssl_random_pseudo_bytes(8), PASSWORD_DEFAULT),rand(4, 16),32));
       $user->save();
       $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username));
       $account = reset($accounts);
