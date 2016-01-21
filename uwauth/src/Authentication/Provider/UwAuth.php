@@ -13,6 +13,7 @@ use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Session\SessionConfigurationInterface;
 use Drupal\Core\Session\AccountInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Drupal\user\Entity\User;
 
 /**
@@ -61,7 +62,7 @@ class UwAuth implements AuthenticationProviderInterface {
 
     // Destroy sessions which don't belong to the Shibboleth authenticated user
     $currentUser = \Drupal::currentUser()->getDisplayName();
-    if(($currentUser !== $username) && ($currentUser !== NULL) && !\Drupal::currentUser()->isAnonymous() && ($group_source !== 'none')) {
+    if(($currentUser !== $username) && ($currentUser !== NULL) && !\Drupal::currentUser()->isAnonymous() && isset($shib_session_id) && ($group_source !== 'none')) {
       session_destroy();
     }
 
@@ -85,13 +86,15 @@ class UwAuth implements AuthenticationProviderInterface {
     $username = $request->server->get('uwnetid');
     $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username));
     $account = reset($accounts);
+    $current_uri = \Drupal::request()->getRequestUri(); 
 
     // Create account if necessary, and log them in
     // After logon, force a refresh. This will let Drupal's cookie provider take over authentication.
     if ($account) {
       $this->sync_roles($account);
       user_login_finalize($account);
-      header("Refresh: 0");
+      $response = new RedirectResponse($current_uri);
+      $response->send();
       return $account;
     } else {
       $user = User::create(array(
@@ -104,7 +107,8 @@ class UwAuth implements AuthenticationProviderInterface {
       $account = reset($accounts);
       $this->sync_roles($account);
       user_login_finalize($account);
-      header("Refresh: 0");
+      $response = new RedirectResponse($current_uri);
+      $response->send();
       return $account;
     }
     return [];
