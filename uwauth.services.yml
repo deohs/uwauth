@@ -1,10 +1,6 @@
 services:
-  authentication.uwauth:
-    class: Drupal\uwauth\Authentication\Provider\UwAuth
-    arguments: ['@entity.manager', '@session_configuration']
+  uwauth.eventsubscriber:
+    class: Drupal\uwauth\EventSubscriber\UwAuthSubscriber
+    arguments: ['@entity.manager']
     tags:
-      - { name: authentication_provider,  provider_id: 'uwauth', priority: 100 }
-  uwauth.page_cache_request_policy.disallow_uwauth_requests:
-      class: Drupal\uwauth\PageCache\DisallowUwAuthRequests
-      tags:
-        - { name: page_cache_request_policy }
+      - { name: event_subscriber }

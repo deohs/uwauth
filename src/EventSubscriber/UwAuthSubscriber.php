@@ -2,25 +2,24 @@
 
 /**
  * @file
- * Contains \Drupal\uwauth\Authentication\Provider\UwAuth.
+ * Contains \Drupal\uwauth\EventSubscriber\UwAuthSubscriber.
  */
 
-namespace Drupal\uwauth\Authentication\Provider;
+namespace Drupal\uwauth\EventSubscriber;
 
 use Drupal\Component\Utility\String;
-use Drupal\Core\Authentication\AuthenticationProviderInterface;
 use Drupal\user\Entity\User;
 use Drupal\Core\Entity\EntityManagerInterface;
-use Drupal\Core\Session\SessionConfigurationInterface;
 use Drupal\Core\Session\AccountInterface;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\RedirectResponse;
-
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 
 /**
  * Shibboleth and UW Groups authentication provider.
  */
-class UwAuth implements AuthenticationProviderInterface {
+class UwAuthSubscriber implements EventSubscriberInterface {
 
   /**
    * The entity manager.
@@ -30,77 +29,44 @@ class UwAuth implements AuthenticationProviderInterface {
   protected $entityManager;
 
   /**
-   * The session configuration.
-   *
-   * @var \Drupal\Core\Session\SessionConfigurationInterface
-   */
-  protected $sessionConfiguration;
-
-  /**
    * Constructs a UW authentication provider object.
    *
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager service.
-   * @param \Drupal\Core\Session\SessionConfigurationInterface $session_configuration
-   *   The session configuration.
    */
-  public function __construct(EntityManagerInterface $entity_manager, SessionConfigurationInterface $session_configuration) {
+  public function __construct(EntityManagerInterface $entity_manager) {
     $this->entityManager = $entity_manager;
-    $this->sessionConfiguration = $session_configuration;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function applies(Request $request) {
-    $username = $request->server->get('uwnetid');
-    $shib_session_id = $request->server->get('Shib-Session-ID');
-    $group_source = \Drupal::config('uwauth.settings')->get('group.source');
-
-    // Set session to expire on browser close
-    ini_set('session.gc_maxlifetime', 3600);
-    ini_set('session.cookie_lifetime', 0);
-
-    // Destroy sessions which don't belong to the Shibboleth authenticated user
-    $currentUser = \Drupal::currentUser()->getDisplayName();
-    if(($currentUser !== $username) && ($currentUser !== NULL) && !\Drupal::currentUser()->isAnonymous() && isset($shib_session_id) && ($group_source !== 'none')) {
-      session_destroy();
-    }
-
-    // We only handle requests with Shibboleth supplied usernames, that don't have Drupal sessions
-    if (!$this->sessionConfiguration->hasSession($request) && isset($username) && isset($shib_session_id) && !($group_source === 'none')) {
-      // Make sure NetID is the typical personal or shared format
-      if ((strlen($username) < 1) || (strlen($username) > 8) || preg_match_all("/[^a-z0-9]/",$username)) {
-        return FALSE;
-      } else {
-        return TRUE;
-      }
-    } else {
-      return FALSE;
-    }
+  public static function getSubscribedEvents() {
+    $events[KernelEvents::REQUEST][] = array('handle', 29);
+    return $events;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function authenticate(Request $request) {
-    return $this->do_authenticate($request, $request->getSession());
+  public function handle(GetResponseEvent $event) {
+    if (\Drupal::currentUser()->isAuthenticated()) {
+      return;
+    }
+
+    $this->login_user();
   }
 
   /**
-   * Authenticate user, and generate session.
+   * Authenticate user, and log them in.
    *
-   * @param $account
-   *   A user object.
    */
-  private function do_authenticate($request) {
-    $username = $request->server->get('uwnetid');
+  private function login_user() {
+    $username = \Drupal::request()->server->get('uwnetid');
     $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username));
     $account = reset($accounts);
-    $current_uri = \Drupal::request()->getRequestUri();
 
-    // Create account if necessary, and log them in
-    // After logon, force a refresh. This will let Drupal's cookie provider take over authentication.
+    // Create account if necessary
     if (!$account) {
       $user = User::create(array(
         'name' => $username,
@@ -111,13 +77,13 @@ class UwAuth implements AuthenticationProviderInterface {
       $user->save();
     }
 
+    // Sync roles, and reload the modified user object
     $this->sync_roles($account);
+    $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username));
+    $account = reset($accounts);
     user_login_finalize($account);
 
-
-
     return $account;
-
   }
 
   /**
