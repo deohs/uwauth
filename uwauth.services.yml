@@ -1,6 +1,6 @@
 services:
   uwauth.eventsubscriber:
     class: Drupal\uwauth\EventSubscriber\UwAuthSubscriber
-    arguments: ['@entity.manager']
+    arguments: ['@request_stack', '@entity.manager']
     tags:
       - { name: event_subscriber }

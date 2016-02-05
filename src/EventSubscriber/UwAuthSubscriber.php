@@ -12,7 +12,7 @@ use Drupal\user\Entity\User;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Routing\TrustedRedirectResponse;
-use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Event\GetResponseEvent;
@@ -21,6 +21,13 @@ use Symfony\Component\HttpKernel\Event\GetResponseEvent;
  * Shibboleth and UW Groups (or Active Directory) event subscriber.
  */
 class UwAuthSubscriber implements EventSubscriberInterface {
+
+  /**
+   * The request.
+   *
+   * @var \Symfony\Component\HttpFoundation\RequestStack
+   */
+  protected $requestStack;
 
   /**
    * The entity manager.
@@ -32,10 +39,13 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   /**
    * Constructs a UW Auth event subscriber.
    *
+   * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
+   *   The request.
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager service.
    */
-  public function __construct(EntityManagerInterface $entity_manager) {
+  public function __construct(RequestStack $request_stack, EntityManagerInterface $entity_manager) {
+    $this->requestStack = $request_stack;
     $this->entityManager = $entity_manager;
   }
 
@@ -62,13 +72,13 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     }
 
     // Verify we're actually in a Shibboleth session
-    $shib_session_id = \Drupal::request()->server->get('Shib-Session-ID');
+    $shib_session_id = $this->requestStack->getCurrentRequest()->server->get('Shib-Session-ID');
     if (!isset($shib_session_id)) {
       return;
     }
 
     // Check for a UW NetID from Shibboleth
-    $username = \Drupal::request()->server->get('uwnetid');
+    $username = $this->requestStack->getCurrentRequest()->server->get('uwnetid');
     if (!isset($username)) {
       return;
     }
@@ -81,7 +91,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * Authenticate user, and log them in.
    */
   private function login_user() {
-    $username = \Drupal::request()->server->get('uwnetid');
+    $username = $this->requestStack->getCurrentRequest()->server->get('uwnetid');
     $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username));
     $account = reset($accounts);
 
@@ -109,9 +119,9 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   * Redirect user back to the requested page
   */
   private function redirect_user() {
-    $current_uri = \Drupal::request()->getRequestUri();
-    $http_host = \Drupal::request()->server->get('HTTP_HOST');
-    $https_request = \Drupal::request()->server->get('HTTPS');
+    $current_uri = $this->requestStack->getCurrentRequest()->getRequestUri();
+    $http_host = $this->requestStack->getCurrentRequest()->server->get('HTTP_HOST');
+    $https_request = $this->requestStack->getCurrentRequest()->server->get('HTTPS');
 
     if (isset($https_request)) {
       $redirect_uri = 'https://'.$http_host.$current_uri.'?uwauth_login=1';
