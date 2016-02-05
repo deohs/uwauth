@@ -57,7 +57,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
 
     // Only handle requests if a group source is configured
     $group_source = \Drupal::config('uwauth.settings')->get('group.source');
-    if ($group_source == "none") {
+    if ($group_source === "none") {
       return;
     }
 
