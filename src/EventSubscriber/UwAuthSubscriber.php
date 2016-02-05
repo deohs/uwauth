@@ -11,13 +11,14 @@ use Drupal\Component\Utility\String;
 use Drupal\user\Entity\User;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Routing\TrustedRedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 
 /**
- * Shibboleth and UW Groups authentication provider.
+ * Shibboleth and UW Groups (or Active Directory) event subscriber.
  */
 class UwAuthSubscriber implements EventSubscriberInterface {
 
@@ -29,7 +30,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   protected $entityManager;
 
   /**
-   * Constructs a UW authentication provider object.
+   * Constructs a UW Auth event subscriber.
    *
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager service.
@@ -54,12 +55,17 @@ class UwAuthSubscriber implements EventSubscriberInterface {
       return;
     }
 
+    $username = \Drupal::request()->server->get('uwnetid');
+    if (!isset($username)) {
+      return;
+    }
+
     $this->login_user();
+    $event->setResponse($this->redirect_user());
   }
 
   /**
    * Authenticate user, and log them in.
-   *
    */
   private function login_user() {
     $username = \Drupal::request()->server->get('uwnetid');
@@ -83,7 +89,25 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     $account = reset($accounts);
     user_login_finalize($account);
 
-    return $account;
+    return TRUE;
+  }
+
+  /**
+  * Redirect user back to the requested page
+  */
+  private function redirect_user() {
+    $current_uri = \Drupal::request()->getRequestUri();
+    $http_host = \Drupal::request()->server->get('HTTP_HOST');
+    $https_request = \Drupal::request()->server->get('HTTPS');
+
+    if (isset($https_request)) {
+      $redirect_uri = 'https://'.$http_host.$current_uri.'?uwauth_login=1';
+    } else {
+      $redirect_uri = 'http://'.$http_host.$current_uri.'?uwauth_login=1';
+    }
+
+    $redirect = TrustedRedirectResponse::create($redirect_uri)->addCacheableDependency([]);
+    return $redirect;
   }
 
   /**
