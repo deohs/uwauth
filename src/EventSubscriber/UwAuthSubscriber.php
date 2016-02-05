@@ -55,6 +55,19 @@ class UwAuthSubscriber implements EventSubscriberInterface {
       return;
     }
 
+    // Only handle requests if a group source is configured
+    $group_source = \Drupal::config('uwauth.settings')->get('group.source');
+    if ($group_source == "none") {
+      return;
+    }
+
+    // Verify we're actually in a Shibboleth session
+    $shib_session_id = \Drupal::request()->server->get('Shib-Session-ID');
+    if (!isset($shib_session_id)) {
+      return;
+    }
+
+    // Check for a UW NetID from Shibboleth
     $username = \Drupal::request()->server->get('uwnetid');
     if (!isset($username)) {
       return;
