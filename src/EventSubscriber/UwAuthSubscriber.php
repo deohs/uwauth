@@ -11,7 +11,7 @@ use Drupal\Component\Utility\String;
 use Drupal\user\Entity\User;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Session\AccountInterface;
-use Drupal\Core\Routing\TrustedRedirectResponse;
+use Drupal\Core\Routing\LocalRedirectResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -120,16 +120,9 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   */
   private function redirect_user() {
     $current_uri = $this->requestStack->getCurrentRequest()->getRequestUri();
-    $http_host = $this->requestStack->getCurrentRequest()->server->get('HTTP_HOST');
-    $https_request = $this->requestStack->getCurrentRequest()->server->get('HTTPS');
 
-    if (isset($https_request)) {
-      $redirect_uri = 'https://'.$http_host.$current_uri.'?uwauth_login=1';
-    } else {
-      $redirect_uri = 'http://'.$http_host.$current_uri.'?uwauth_login=1';
-    }
-
-    $redirect = TrustedRedirectResponse::create($redirect_uri)->addCacheableDependency([]);
+    \Drupal::service('page_cache_kill_switch')->trigger();
+    $redirect = LocalRedirectResponse::create($current_uri);
     return $redirect;
   }
 
