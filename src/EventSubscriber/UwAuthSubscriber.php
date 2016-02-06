@@ -7,7 +7,6 @@
 
 namespace Drupal\uwauth\EventSubscriber;
 
-use Drupal\Component\Utility\String;
 use Drupal\user\Entity\User;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Session\AccountInterface;
@@ -18,7 +17,7 @@ use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 
 /**
- * Shibboleth and UW Groups (or Active Directory) event subscriber.
+ * UW Auth event subscriber.
  */
 class UwAuthSubscriber implements EventSubscriberInterface {
 
@@ -119,9 +118,9 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   * Redirect user back to the requested page
   */
   private function redirect_user() {
-    $current_uri = $this->requestStack->getCurrentRequest()->getRequestUri();
-
+    // Disable Page Cache to prevent redirect response from being cached
     \Drupal::service('page_cache_kill_switch')->trigger();
+    $current_uri = $this->requestStack->getCurrentRequest()->getRequestUri();
     $redirect = LocalRedirectResponse::create($current_uri);
     return $redirect;
   }
