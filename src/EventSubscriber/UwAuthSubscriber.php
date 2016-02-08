@@ -105,6 +105,9 @@ class UwAuthSubscriber implements EventSubscriberInterface {
       $user->save();
     }
 
+    // Set cookie_lifetime to on browser close
+    ini_set('session.cookie_lifetime', 0);
+
     // Sync roles, and reload the modified user object
     $this->sync_roles($account);
     $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username));
