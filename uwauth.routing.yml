@@ -6,8 +6,8 @@ uwauth.settings:
   requirements:
     _permission: 'administer site configuration'
 uwauth.logout:
-  path: /uwauthlogout'
+  path: '/uwauthlogout'
   defaults:
-    _controller: '\Drupal\uwauth\Controller\UwAuthLogoutController'
+    _controller: '\Drupal\uwauth\Controller\UwAuthLogoutController::logout'
   requirements:
     _access: 'TRUE'
