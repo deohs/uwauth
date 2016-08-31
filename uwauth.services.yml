@@ -1,6 +1,13 @@
+parameters:
+  uwauth.verbose: false
+
 services:
   uwauth.eventsubscriber:
     class: Drupal\uwauth\EventSubscriber\UwAuthSubscriber
-    arguments: ['@request_stack', '@entity.manager']
+    arguments: ['@request_stack', '@entity.manager', '@uwauth.debug']
     tags:
       - { name: event_subscriber }
+
+  uwauth.debug:
+    class: Drupal\uwauth\Debug
+    arguments: ['%uwauth.verbose%']

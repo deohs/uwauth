@@ -7,12 +7,15 @@
 
 namespace Drupal\uwauth\EventSubscriber;
 
+use Drupal\Component\Utility\Unicode;
 use Drupal\user\Entity\User;
 use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Routing\LocalRedirectResponse;
+use Drupal\uwauth\Debug;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBag;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 
@@ -22,11 +25,11 @@ use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 class UwAuthSubscriber implements EventSubscriberInterface {
 
   /**
-   * The request.
+   * A diagnostic display service.
    *
-   * @var \Symfony\Component\HttpFoundation\RequestStack
+   * @var \Drupal\uwauth\Debug
    */
-  protected $requestStack;
+  public $debug;
 
   /**
    * The entity manager.
@@ -36,16 +39,27 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   protected $entityManager;
 
   /**
+   * The request.
+   *
+   * @var \Symfony\Component\HttpFoundation\RequestStack
+   */
+  protected $requestStack;
+
+  /**
    * Constructs a UW Auth event subscriber.
    *
    * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
    *   The request.
    * @param \Drupal\Core\Entity\EntityManagerInterface $entity_manager
    *   The entity manager service.
+   * @param \Drupal\uwauth\Debug $debug
+   *   A diagnostic display service.
    */
-  public function __construct(RequestStack $request_stack, EntityManagerInterface $entity_manager) {
-    $this->requestStack = $request_stack;
+  public function __construct(RequestStack $request_stack, EntityManagerInterface $entity_manager,
+    Debug $debug) {
+    $this->debug = $debug;
     $this->entityManager = $entity_manager;
+    $this->requestStack = $request_stack;
   }
 
   /**
@@ -60,24 +74,57 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * {@inheritdoc}
    */
   public function handle(GetResponseEvent $event) {
+    $this->debug->message("user id: " . \Drupal::currentUser()->id());
     if (\Drupal::currentUser()->isAuthenticated()) {
+      $this->debug->message('Already authenticated');
       return;
     }
+    $this->debug->message('Not authenticated');
 
     // Only handle requests if a group source is configured
     $group_source = \Drupal::config('uwauth.settings')->get('group.source');
     if ($group_source === "none") {
+      $this->debug->message("Group source: 'none'.");
       return;
     }
+    $this->debug->message("Group source '$group_source'.");
 
-    // Verify we're actually in a Shibboleth session
-    $shib_session_id = $this->requestStack->getCurrentRequest()->server->get('Shib-Session-ID');
+    // Verify we're actually in a Shibboleth session.
+    $shib_session_id = $this->requestStack
+      ->getCurrentRequest()
+      ->server
+      ->get('REDIRECT_Shib-Session-ID');
+
     if (!isset($shib_session_id)) {
+      $this->debug->message('Not in a Shibboleth session.');
       return;
     }
+    $this->debug->message("In Shibboleth session $shib_session_id.");
 
-    // Check for a UW NetID from Shibboleth
-    $username = $this->requestStack->getCurrentRequest()->server->get('uwnetid');
+    // Check for a UW NetID from Shibboleth.
+    $attributes = new AttributeBag();
+    $allowedAttributes = array_flip([
+      'cn',
+      'sn',
+      'givenName',
+      'employeeType',
+      'uid',
+    ]);
+    $attributeCandidates = $this->requestStack->getCurrentRequest()->server->all();
+    foreach ($attributeCandidates as $k => $v) {
+      $matches = [];
+      if (preg_match('/^(REDIRECT_)?Shib-([-\w]+)/', $k, $matches)) {
+        $this->debug->message("Shibboleth " . $matches[2] . ' = ' . json_encode($v));
+      }
+      elseif (preg_match('/^REDIRECT_([\w]+)$/', $k, $matches)) {
+        $name = $matches[1];
+        if (isset($allowedAttributes[$name])) {
+          $this->debug->message("Attribute $name = " . json_encode($v));
+          $attributes->set($name, $v);
+        }
+      }
+    }
+    $username = $attributes->get('uid');
     if (!isset($username)) {
       return;
     }
@@ -90,7 +137,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * Authenticate user, and log them in.
    */
   private function login_user() {
-    $username = $this->requestStack->getCurrentRequest()->server->get('uwnetid');
+    $username = $this->requestStack->getCurrentRequest()->server->get('REDIRECT_uid');
     $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username));
     $account = reset($accounts);
 
@@ -197,6 +244,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    *   A user object.
    */
   private function fetch_gws_groups($account) {
+    return [];
     $username = $account->getUsername();
 
     $uwauth_config = \Drupal::config('uwauth.settings');
