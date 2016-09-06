@@ -1,2 +1,5 @@
 group:
   source: none
+mail:
+  # An array of valid email domains. If empty, any domain is valid.
+  valid_domains: []

@@ -2,7 +2,6 @@
 
 namespace Drupal\uwauth;
 
-
 use Drupal\Component\Utility\Unicode;
 
 class Debug {

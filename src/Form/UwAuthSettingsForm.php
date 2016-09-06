@@ -1,42 +1,105 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\uwauth\UwAuthSettingsForm
- */
+namespace Drupal\uwauth\Form;
 
-namespace Drupal\uwauth;
-
+use Drupal\Core\Config\Config;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Configure UwAuth settings for this site.
  */
 class UwAuthSettingsForm extends ConfigFormBase {
+  const SETTINGS_NAME = 'uwauth.settings';
 
-  /** 
+  /**
+   * The config.typed service.
+   *
+   * @var \Drupal\Core\Config\Schema\TypedConfigInterface
+   */
+  protected $configTyped;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __construct(ConfigFactoryInterface $configFactory, TypedConfigManagerInterface $configTyped) {
+    parent::__construct($configFactory);
+    $this->configTyped = $configTyped;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('config.factory'),
+      $container->get('config.typed')
+    );
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function getFormId() {
     return 'uwauth_settings';
   }
 
-  /** 
+  /**
    * {@inheritdoc}
    */
   protected function getEditableConfigNames() {
     return [
-      'uwauth.settings',
+      static::SETTINGS_NAME,
     ];
   }
 
-  /** 
+  /**
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('uwauth.settings');
 
+    $form = $this->buildUwSettings($form, $form_state, $config);
+    $form = $this->buildMailSettings($form, $form_state, $config);
+    return parent::buildForm($form, $form_state);
+  }
+
+  /**
+   * Build the mail-related part of the form.
+   *
+   * @param array $form
+   *   The form array.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   * @param \Drupal\Core\Config\Config $config
+   *   The module settings.
+   *
+   * @return array
+   *   The modified form array.
+   */
+  protected function buildMailSettings(array $form, FormStateInterface $form_state, Config $config) {
+    $schema = $this->configTyped->getDefinition('uwauth.settings')['mapping']['mail'];
+    ksm($config, $schema);
+    return $form;
+  }
+
+  /**
+   * Build the UW-related part of the form.
+   *
+   * @param array $form
+   *   The form array.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   * @param \Drupal\Core\Config\Config $config
+   *   The module settings.
+   *
+   * @return array
+   *   The modified form array.
+   */
+  protected function buildUwSettings(array $form, FormStateInterface $form_state, Config $config) {
     $form['uwauth_general'] = array(
       '#type' => 'details',
       '#title' => t('General'),
@@ -132,75 +195,80 @@ class UwAuthSettingsForm extends ConfigFormBase {
       '#rows' => 15,
     );
 
-    return parent::buildForm($form, $form_state);
+    return $form;
   }
 
-  /** 
+  /**
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
 
-    if(($form_state->getValue('source') == "ad") && ((strlen($form_state->getValue('uri')) == 0) || (strlen($form_state->getValue('basedn')) == 0))) {
+    if (($form_state->getValue('source') == "ad") && ((strlen($form_state->getValue('uri')) == 0) || (strlen($form_state->getValue('basedn')) == 0))) {
       $form_state->setErrorByName('source', t('Active Directory requires both the URI and Base DN to be configured.'));
     }
 
-    if(($form_state->getValue('source') == "gws") && ((strlen($form_state->getValue('cert')) == 0) || (strlen($form_state->getValue('key')) == 0) || (strlen($form_state->getValue('cacert')) == 0))) {
+    if (($form_state->getValue('source') == "gws") && ((strlen($form_state->getValue('cert')) == 0) || (strlen($form_state->getValue('key')) == 0) || (strlen($form_state->getValue('cacert')) == 0))) {
       $form_state->setErrorByName('source', t('Groups Web Service requires the Certificate, Key, and CA Certificate to be configured.'));
     }
 
-    if((strlen($form_state->getValue('cert')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/",$form_state->getValue('cert'))) {
+    if ((strlen($form_state->getValue('cert')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $form_state->getValue('cert'))) {
       $form_state->setErrorByName('cert', t('The Certificate path contains invalid characters.'));
-    } elseif((strlen($form_state->getValue('cert')) > 0) && !is_readable($form_state->getValue('cert'))) {
+    }
+    elseif ((strlen($form_state->getValue('cert')) > 0) && !is_readable($form_state->getValue('cert'))) {
       $form_state->setErrorByName('cert', t('The Certificate file could not be read. Please verify the path is correct.'));
     }
 
-    if((strlen($form_state->getValue('key')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/",$form_state->getValue('key'))) {
+    if ((strlen($form_state->getValue('key')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $form_state->getValue('key'))) {
       $form_state->setErrorByName('key', t('The Key path contains invalid characters.'));
-    } elseif((strlen($form_state->getValue('key')) > 0) && !is_readable($form_state->getValue('key'))) {
+    }
+    elseif ((strlen($form_state->getValue('key')) > 0) && !is_readable($form_state->getValue('key'))) {
       $form_state->setErrorByName('key', t('The Key file could not be read. Please verify the path is correct.'));
     }
 
-    if((strlen($form_state->getValue('cacert')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/",$form_state->getValue('cacert'))) {
+    if ((strlen($form_state->getValue('cacert')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $form_state->getValue('cacert'))) {
       $form_state->setErrorByName('cacert', t('The CA Certificate path contains invalid characters.'));
-    } elseif((strlen($form_state->getValue('cacert')) > 0) && !is_readable($form_state->getValue('cacert'))) {
+    }
+    elseif ((strlen($form_state->getValue('cacert')) > 0) && !is_readable($form_state->getValue('cacert'))) {
       $form_state->setErrorByName('cacert', t('The CA Certificate file could not be read. Please verify the path is correct.'));
     }
 
-    if((strlen($form_state->getValue('uri')) > 0) && (preg_match("/^(ldap:\/\/|ldaps:\/\/)[a-z0-9_\.\-]*[a-z0-9]$/i",$form_state->getValue('uri')) === 0)) {
+    if ((strlen($form_state->getValue('uri')) > 0) && (preg_match("/^(ldap:\/\/|ldaps:\/\/)[a-z0-9_\.\-]*[a-z0-9]$/i", $form_state->getValue('uri')) === 0)) {
       $form_state->setErrorByName('uri', t('The LDAP URI contains invalid characters or formatting.'));
     }
 
-    if((strlen($form_state->getValue('basedn')) > 0) && (preg_match("/^(OU=|DC=)[a-z0-9_\-=, ]*[a-z0-9]$/i",$form_state->getValue('basedn')) === 0)) {
+    if ((strlen($form_state->getValue('basedn')) > 0) && (preg_match("/^(OU=|DC=)[a-z0-9_\-=, ]*[a-z0-9]$/i", $form_state->getValue('basedn')) === 0)) {
       $form_state->setErrorByName('basedn', t('The Base DN contains invalid characters or formatting.'));
     }
 
-    if((strlen($form_state->getValue('binddn')) > 0) && (preg_match("/^CN=[a-z0-9_\-=, ]*[a-z0-9]$/i",$form_state->getValue('binddn')) === 0)) {
+    if ((strlen($form_state->getValue('binddn')) > 0) && (preg_match("/^CN=[a-z0-9_\-=, ]*[a-z0-9]$/i", $form_state->getValue('binddn')) === 0)) {
       $form_state->setErrorByName('binddn', t('The Bind DN contains invalid characters or formatting.'));
     }
 
-    if((strlen($form_state->getValue('map')) > 0) && preg_match_all("/^([^a-z0-9_\-]*\|[a-z0-9_\-]*|[a-z0-9_\-]*\|[^a-z0-9_\-]*)$/mi",$form_state->getValue('map'))) {
+    if ((strlen($form_state->getValue('map')) > 0) && preg_match_all("/^([^a-z0-9_\-]*\|[a-z0-9_\-]*|[a-z0-9_\-]*\|[^a-z0-9_\-]*)$/mi", $form_state->getValue('map'))) {
       $form_state->setErrorByName('map', t('The Group Map contains invalid characters or formatting.'));
     }
   }
 
-  /** 
+  /**
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $this->config('uwauth.settings')->set('gws.cert', $form_state->getValue('cert'));
-    $this->config('uwauth.settings')->set('gws.key', $form_state->getValue('key'));
-    $this->config('uwauth.settings')->set('gws.cacert', $form_state->getValue('cacert'));
-    $this->config('uwauth.settings')->set('ad.uri', $form_state->getValue('uri'));
-    $this->config('uwauth.settings')->set('ad.basedn', $form_state->getValue('basedn'));
-    $this->config('uwauth.settings')->set('ad.binddn', $form_state->getValue('binddn'));
-    if(($this->config('uwauth.settings')->get('ad.bindpass') === NULL) || (strlen($form_state->getValue('bindpass')) > 0)) {
-      $this->config('uwauth.settings')->set('ad.bindpass', $form_state->getValue('bindpass'));
-    } 
-    $this->config('uwauth.settings')->set('group.map', $form_state->getValue('map'));
-    $this->config('uwauth.settings')->set('group.source', $form_state->getValue('source'));
+    $settings = $this->config(static::SETTINGS_NAME);
+    $settings->set('gws.cert', $form_state->getValue('cert'))
+      ->set('gws.key', $form_state->getValue('key'))
+      ->set('gws.cacert', $form_state->getValue('cacert'))
+      ->set('ad.uri', $form_state->getValue('uri'))
+      ->set('ad.basedn', $form_state->getValue('basedn'))
+      ->set('ad.binddn', $form_state->getValue('binddn'));
+    if (($settings->get('ad.bindpass') === NULL) || (strlen($form_state->getValue('bindpass')) > 0)) {
+      $settings->set('ad.bindpass', $form_state->getValue('bindpass'));
+    }
+    $settings->set('group.map', $form_state->getValue('map'))
+      ->set('group.source', $form_state->getValue('source'));
 
-    $this->config('uwauth.settings')->save();
+    $settings->save();
 
     parent::submitForm($form, $form_state);
   }
+
 }

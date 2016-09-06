@@ -4,7 +4,13 @@ parameters:
 services:
   uwauth.eventsubscriber:
     class: Drupal\uwauth\EventSubscriber\UwAuthSubscriber
-    arguments: ['@request_stack', '@entity.manager', '@uwauth.debug']
+    arguments:
+      - '@request_stack'
+      - '@entity.manager'
+      - '@uwauth.debug'
+      - '@current_user'
+      - '@config.factory'
+      - '@page_cache_kill_switch'
     tags:
       - { name: event_subscriber }
 
