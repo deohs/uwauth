@@ -2,7 +2,6 @@
 
 namespace Drupal\uwauth\Form;
 
-use Drupal\Core\Config\Config;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
@@ -23,11 +22,19 @@ class UwAuthSettingsForm extends ConfigFormBase {
   protected $configTyped;
 
   /**
+   * The module settings.
+   *
+   * @var \Drupal\Core\Config\Config
+   */
+  protected $settings;
+
+  /**
    * {@inheritdoc}
    */
   public function __construct(ConfigFactoryInterface $configFactory, TypedConfigManagerInterface $configTyped) {
     parent::__construct($configFactory);
     $this->configTyped = $configTyped;
+    $this->settings = $this->config(static::SETTINGS_NAME);
   }
 
   /**
@@ -60,10 +67,8 @@ class UwAuthSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    $config = $this->config('uwauth.settings');
-
-    $form = $this->buildUwSettings($form, $form_state, $config);
-    $form = $this->buildMailSettings($form, $form_state, $config);
+    $form = $this->buildUwSettings($form, $form_state);
+    $form = $this->buildMailSettings($form, $form_state);
     return parent::buildForm($form, $form_state);
   }
 
@@ -74,15 +79,13 @@ class UwAuthSettingsForm extends ConfigFormBase {
    *   The form array.
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    *   The form state.
-   * @param \Drupal\Core\Config\Config $config
-   *   The module settings.
    *
    * @return array
    *   The modified form array.
    */
-  protected function buildMailSettings(array $form, FormStateInterface $form_state, Config $config) {
-    $schema = $this->configTyped->getDefinition('uwauth.settings')['mapping']['mail'];
-    ksm($config, $schema);
+  protected function buildMailSettings(array $form, FormStateInterface $form_state) {
+    $schema = $this->configTyped->getDefinition(static::SETTINGS_NAME)['mapping']['mail'];
+    ksm($this->settings, $schema);
     return $form;
   }
 
@@ -93,19 +96,18 @@ class UwAuthSettingsForm extends ConfigFormBase {
    *   The form array.
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    *   The form state.
-   * @param \Drupal\Core\Config\Config $config
-   *   The module settings.
    *
    * @return array
    *   The modified form array.
    */
-  protected function buildUwSettings(array $form, FormStateInterface $form_state, Config $config) {
+  protected function buildUwSettings(array $form, FormStateInterface $form_state) {
     $form['uwauth_general'] = array(
       '#type' => 'details',
       '#title' => t('General'),
       '#open' => TRUE,
     );
 
+    $groupSource = $this->settings->get('group.source');
     $form['uwauth_general']['source'] = array(
       '#type' => 'select',
       '#title' => t('Group Source'),
@@ -113,65 +115,80 @@ class UwAuthSettingsForm extends ConfigFormBase {
       '#options' => array(
         'gws' => t('Groups Web Service'),
         'ad' => t('Active Directory'),
-        'none' => t('None'),
+        'login' => t('None, but login'),
+        'none' => t("None, don't login"),
       ),
-      '#default_value' => $config->get('group.source'),
+      '#default_value' => $groupSource,
     );
+
+    $form['uwauth_general']['name_id'] = [
+      '#default_value' => $this->settings->get('auth.name_id'),
+      '#description' => t('The property used as Shibboleth NameID, to be used as Drupal username.'),
+      '#title' => $this->t('NameID name'),
+      '#type' => 'textfield',
+    ];
+    $form['uwauth_general']['allowed_attributes'] = [
+      '#cols' => 20,
+      '#default_value' => $this->settings->get('auth.allowed_attributes'),
+      '#description' => t('List the allowed attributes, one per line'),
+      '#title' => $this->t('Allowed attributes'),
+      '#type' => 'textarea',
+    ];
 
     $form['uwauth_gws'] = array(
       '#type' => 'details',
       '#title' => t('Groups Web Service'),
       '#description' => t('If using GWS as your group source, please provide the paths to your UW certificates. For security purposes, the certificates should be stored outside of your website root.'),
-      '#open' => TRUE,
+      '#open' => $groupSource === 'gws',
     );
 
     $form['uwauth_gws']['cert'] = array(
       '#type' => 'textfield',
       '#title' => t('Certificate Path'),
       '#description' => t('Example: /etc/ssl/drupal_uwca_cert.pem'),
-      '#default_value' => $config->get('gws.cert'),
+      '#default_value' => $this->settings->get('gws.cert'),
     );
 
     $form['uwauth_gws']['key'] = array(
       '#type' => 'textfield',
       '#title' => t('Private Key Path'),
       '#description' => t('Example: /etc/ssl/drupal_uwca_key.pem'),
-      '#default_value' => $config->get('gws.key'),
+      '#default_value' => $this->settings->get('gws.key'),
     );
 
     $form['uwauth_gws']['cacert'] = array(
       '#type' => 'textfield',
       '#title' => t('CA Certificate Path'),
       '#description' => t('Example: /etc/ssl/drupal_uwca_ca.pem'),
-      '#default_value' => $config->get('gws.cacert'),
+      '#default_value' => $this->settings->get('gws.cacert'),
     );
 
     $form['uwauth_ad'] = array(
       '#type' => 'details',
       '#title' => t('Active Directory'),
       '#description' => t('If using AD as your group source, please provide the LDAP URI and Base DN for your domain. For anonymous lookups, leave the Bind DN and Bind Password fields blank.'),
-      '#open' => TRUE,
+      '#open' => $groupSource === 'ad',
     );
 
     $form['uwauth_ad']['uri'] = array(
       '#type' => 'textfield',
       '#title' => t('LDAP URI'),
       '#description' => t('Example: ldap://domaincontroller.example.org'),
-      '#default_value' => $config->get('ad.uri'),
+      '#default_value' => $this->settings->get('ad.uri'),
     );
 
     $form['uwauth_ad']['basedn'] = array(
       '#type' => 'textfield',
       '#title' => t('Base DN'),
       '#description' => t('Example: DC=example,DC=org'),
-      '#default_value' => $config->get('ad.basedn'),
+      '#default_value' => $this->settings->get('ad.basedn'),
     );
 
     $form['uwauth_ad']['binddn'] = array(
       '#type' => 'textfield',
       '#title' => t('Bind DN'),
       '#description' => t('Example: CN=drupal,CN=Users,DC=example,DC=org'),
-      '#default_value' => $config->get('ad.binddn'),
+      '#default_value' => $this->settings->get('ad.binddn'),
     );
 
     $form['uwauth_ad']['bindpass'] = array(
@@ -184,14 +201,14 @@ class UwAuthSettingsForm extends ConfigFormBase {
       '#type' => 'details',
       '#title' => t('Group to Role Mapping'),
       '#description' => t('For group source portability, groups are mapped to roles. Each group can be mapped to a single role.'),
-      '#open' => TRUE,
+      '#open' => in_array($groupSource, ['ad', 'gws']),
     );
 
     $form['uwauth_map']['map'] = array(
       '#type' => 'textarea',
       '#title' => t('Group Map'),
       '#description' => t('Note: Each row corresponds to a single group to role mapping. The format is group|role. All roles should be entered as their machine name.'),
-      '#default_value' => $config->get('group.map'),
+      '#default_value' => $this->settings->get('group.map'),
       '#rows' => 15,
     );
 
@@ -253,20 +270,22 @@ class UwAuthSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $settings = $this->config(static::SETTINGS_NAME);
-    $settings->set('gws.cert', $form_state->getValue('cert'))
+    $this->settings
+      ->set('auth.name_id', $form_state->getValue('name_id'))
+      ->set('auth.allowed_attributes', $form_state->getValue('allowed_attributes'))
+      ->set('gws.cert', $form_state->getValue('cert'))
       ->set('gws.key', $form_state->getValue('key'))
       ->set('gws.cacert', $form_state->getValue('cacert'))
       ->set('ad.uri', $form_state->getValue('uri'))
       ->set('ad.basedn', $form_state->getValue('basedn'))
       ->set('ad.binddn', $form_state->getValue('binddn'));
-    if (($settings->get('ad.bindpass') === NULL) || (strlen($form_state->getValue('bindpass')) > 0)) {
-      $settings->set('ad.bindpass', $form_state->getValue('bindpass'));
+    if (($this->settings->get('ad.bindpass') === NULL) || (strlen($form_state->getValue('bindpass')) > 0)) {
+      $this->settings->set('ad.bindpass', $form_state->getValue('bindpass'));
     }
-    $settings->set('group.map', $form_state->getValue('map'))
+    $this->settings->set('group.map', $form_state->getValue('map'))
       ->set('group.source', $form_state->getValue('source'));
 
-    $settings->save();
+    $this->settings->save();
 
     parent::submitForm($form, $form_state);
   }

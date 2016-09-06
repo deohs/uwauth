@@ -4,10 +4,19 @@ namespace Drupal\uwauth;
 
 use Drupal\Component\Utility\Unicode;
 
+/**
+ * Class Debug provides configurable debug information.
+ */
 class Debug {
 
   protected $verbose;
 
+  /**
+   * Debug constructor.
+   *
+   * @param bool $verbose
+   *   Display debug information ?
+   */
   public function __construct($verbose = FALSE) {
     $this->verbose = $verbose;
   }

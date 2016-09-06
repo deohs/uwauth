@@ -98,190 +98,37 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   }
 
   /**
-   * {@inheritdoc}
-   */
-  public static function getSubscribedEvents() {
-    $events[KernelEvents::REQUEST][] = array('handle', 29);
-    return $events;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function handle(GetResponseEvent $event) {
-    $this->debug->message($this->t('User id: @id', ['@id' => $this->currentUser->id()]));
-    if ($this->currentUser->isAuthenticated()) {
-      $this->debug->message($this->t('Already authenticated'));
-      return;
-    }
-    $this->debug->message($this->t('Not authenticated'));
-
-    // Only handle requests if a group source is configured.
-    $group_source = $this->settings->get('group.source');
-    if ($group_source === "none") {
-      $this->debug->message("Group source: 'none'.");
-      return;
-    }
-    $this->debug->message($this->t("Group source '@source'.", ['@source' => $group_source]));
-
-    // Verify we're actually in a Shibboleth session.
-    $shib_session_id = $this->requestStack
-      ->getCurrentRequest()
-      ->server
-      ->get('REDIRECT_Shib-Session-ID');
-
-    if (!isset($shib_session_id)) {
-      $this->debug->message($this->t('Not in a Shibboleth session.'));
-      return;
-    }
-    $this->debug->message($this->t("In Shibboleth session @id.", ['@id' => $shib_session_id]));
-
-    // Check for a UW NetID from Shibboleth.
-    $attributes = new AttributeBag();
-    $allowedAttributes = array_flip([
-      'cn',
-      'sn',
-      'givenName',
-      'employeeType',
-      'uid',
-    ]);
-    $attributeCandidates = $this->requestStack->getCurrentRequest()->server->all();
-    foreach ($attributeCandidates as $k => $v) {
-      $matches = [];
-      if (preg_match('/^(REDIRECT_)?Shib-([-\w]+)/', $k, $matches)) {
-        $this->debug->message($this->t('Shibboleth @name = @value.', [
-          '@name' => $matches[2],
-          '@value' => json_encode($v),
-        ]));
-      }
-      elseif (preg_match('/^REDIRECT_([\w]+)$/', $k, $matches)) {
-        $name = $matches[1];
-        if (isset($allowedAttributes[$name])) {
-          $this->debug->message($this->t('Attribute @name = @value.', [
-            '@name' => $name,
-            '@value' => json_encode($v),
-          ]));
-          $attributes->set($name, $v);
-        }
-      }
-    }
-    $username = $attributes->get('uid');
-
-    if (!isset($username)) {
-      return;
-    }
-
-    $this->loginUser();
-    $event->setResponse($this->redirectUser());
-  }
-
-  /**
-   * Authenticate user, and log them in.
-   */
-  private function loginUser() {
-    $username = $this->requestStack->getCurrentRequest()->server->get('REDIRECT_uid');
-    $accounts = $this->entityTypeManager->getStorage('user')->loadByProperties(['name' => $username]);
-    $account = reset($accounts);
-
-    // Create account if necessary.
-    if (!$account) {
-      $user = User::create([
-        'name' => $username,
-        'mail' => $username . '@uw.edu',
-        'status' => 1,
-      ]);
-      $user->setPassword(substr(password_hash(openssl_random_pseudo_bytes(8), PASSWORD_DEFAULT), rand(4, 16), 32));
-      $user->save();
-    }
-
-    // Set cookie_lifetime to on browser close.
-    ini_set('session.cookie_lifetime', 0);
-
-    // Sync roles, and reload the modified user object.
-    $this->syncRoles($account);
-    $accounts = $this->entityTypeManager->getStorage('user')->loadByProperties(['name' => $username]);
-    $account = reset($accounts);
-    user_login_finalize($account);
-
-    return TRUE;
-  }
-
-  /**
-   * Redirect user back to the requested page.
-   */
-  private function redirectUser() {
-    // Disable Page Cache to prevent redirect response from being cached.
-    $this->killSwitch->trigger();
-    $current_uri = $this->requestStack->getCurrentRequest()->getRequestUri();
-    $redirect = LocalRedirectResponse::create($current_uri);
-    return $redirect;
-  }
-
-  /**
-   * Synchronize roles with UW Groups or Active Directory.
-   *
-   * @param \Drupal\user\UserInterface $account
-   *   A user object.
-   */
-  private function syncRoles(UserInterface $account) {
-    $roles_existing = user_roles(TRUE);
-    $roles_assigned = $account->getRoles(TRUE);
-    $mapped_roles = $this->mapGroupsRoles($account);
-
-    // Remove from roles they are no longer assigned to.
-    foreach ($roles_assigned as $role_assigned) {
-      if (!in_array($role_assigned, $mapped_roles)) {
-        $account->removeRole($role_assigned);
-      }
-    }
-
-    // Add to newly assigned roles.
-    foreach ($mapped_roles as $mapped) {
-      if (array_key_exists($mapped, $roles_existing)) {
-        $account->addRole($mapped);
-      }
-    }
-
-    $account->save();
-  }
-
-  /**
-   * Map UW Groups or AD group membership to roles.
+   * Fetch group membership from Active Directory.
    *
    * @param \Drupal\user\UserInterface $account
    *   A user object.
    *
-   * @return array<string>
-   *   An array of role names.
+   * @return array
+   *   An array of group names.
    */
-  private function mapGroupsRoles(UserInterface $account) {
-    switch ($this->settings->get('group.source')) {
-      case 'gws':
-        $group_membership = $this->fetchGwsGroups($account);
-        break;
+  private function fetchAdGroups(UserInterface $account) {
+    $username = $account->getAccountName();
 
-      case 'ad':
-        $group_membership = $this->fetchAdGroups($account);
-        break;
+    // Search Filter.
+    $search_filter = "(sAMAccountName=" . $username . ")";
+
+    // Query Active Directory for user, and fetch group membership.
+    $ad_conn = ldap_connect($this->settings->get('ad.uri'));
+    if (($this->settings->get('ad.binddn') !== NULL) && ($this->settings->get('ad.bindpass') !== NULL)) {
+      ldap_bind($ad_conn, $this->settings->get('ad.binddn'), $this->settings->get('ad.bindpass'));
     }
+    $ad_search = ldap_search($ad_conn, $this->settings->get('ad.basedn'), $search_filter, ['memberOf']);
+    $ad_search_results = ldap_get_entries($ad_conn, $ad_search);
 
-    // Group to Role maps are stored as a multi-line string, containing pipe-
-    // delimited key-value pairs.
-    $group_role_map = array();
-    foreach (preg_split("/((\r?\n)|(\r\n?))/", $this->settings->get('group.map')) as $entry) {
-      $pair = explode('|', $entry);
-      $group_role_map[(string) $pair[0]] = (string) $pair[1];
-    }
-
-    // Loop through group list, and extract matching roles.
-    $mapped_roles = array();
-    foreach ($group_membership as $group) {
-      if (array_key_exists($group, $group_role_map)) {
-        $mapped_roles[] = (string) $group_role_map[$group];
+    // Extract group names from DNs.
+    $ad_groups = [];
+    foreach ($ad_search_results[0]['memberof'] as $entry) {
+      if (preg_match("/^CN=([a-zA-Z0-9_\- ]+)/", $entry, $matches)) {
+        $ad_groups[] = (string) $matches[1];
       }
     }
 
-    return $mapped_roles;
+    return $ad_groups;
   }
 
   /**
@@ -325,37 +172,239 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   }
 
   /**
-   * Fetch group membership from Active Directory.
+   * Extract possibly usable attributes (and NameID) from the request.
+   *
+   * @return \Symfony\Component\HttpFoundation\Session\Attribute\AttributeBag
+   *   The "attributes".
+   */
+  protected function getFilteredAttributes() {
+    // Check for a UW NetID from Shibboleth.
+    $attributes = new AttributeBag();
+    $allowedAttributes = array_flip(explode("\n", $this->settings->get('auth.allowed_attributes')));
+    $attributeCandidates = $this->requestStack->getCurrentRequest()->server->all();
+    foreach ($attributeCandidates as $k => $v) {
+      $matches = [];
+      if (preg_match('/^(REDIRECT_)?Shib-([-\w]+)/', $k, $matches)) {
+        $this->debug->message($this->t('Shibboleth @name = @value.', [
+          '@name' => $matches[2],
+          '@value' => json_encode($v),
+        ]));
+      }
+      elseif (preg_match('/^(REDIRECT_)?([\w]+)$/', $k, $matches)) {
+        $name = $matches[2];
+        if (isset($allowedAttributes[$name])) {
+          $this->debug->message($this->t('Attribute @name = @value.', [
+            '@name' => $name,
+            '@value' => json_encode($v),
+          ]));
+          $attributes->set($name, $v);
+        }
+      }
+    }
+
+    return $attributes;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function getSubscribedEvents() {
+    $events[KernelEvents::REQUEST][] = array('handle', 29);
+    return $events;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function handle(GetResponseEvent $event) {
+    $this->debug->message($this->t('User id: @id', ['@id' => $this->currentUser->id()]));
+    if ($this->isLoggedIn() || !$this->needsLogin() || !$this->hasShibbolethSession()) {
+      return;
+    }
+
+    $attributes = $this->getFilteredAttributes();
+    $username = $attributes->get($this->settings->get('auth.name_id'));
+    if (!isset($username)) {
+      return;
+    }
+
+    $this->loginUser($username);
+    $event->setResponse($this->redirectUser());
+  }
+
+  /**
+   * Check whether the current request describes a Shibboleth session.
+   *
+   * @return bool
+   *   Does it ?
+   */
+  protected function hasShibbolethSession() {
+    // Verify we're actually in a Shibboleth session.
+    $server = $this->requestStack
+      ->getCurrentRequest()
+      ->server;
+    $shib_session_id = $server->get('Shib-Session-ID');
+    if (!isset($shib_session_id)) {
+      $shib_session_id = $server->get('REDIRECT_Shib-Session-ID');
+    }
+
+    if (!isset($shib_session_id)) {
+      $this->debug->message($this->t('Not in a Shibboleth session.'));
+      return FALSE;
+    }
+    $this->debug->message($this->t("In Shibboleth session @id.", ['@id' => $shib_session_id]));
+    return TRUE;
+  }
+
+  /**
+   * Is the current user logged-in on Drupal ?
+   *
+   * @return bool
+   *   Is the user logged-in ?
+   */
+  protected function isLoggedIn() {
+    if ($this->currentUser->isAuthenticated()) {
+      $this->debug->message($this->t('Already authenticated'));
+      return TRUE;
+    }
+    $this->debug->message($this->t('Not authenticated'));
+    return FALSE;
+  }
+
+  /**
+   * Authenticate user, and log them in.
+   *
+   * @param string $username
+   *   The Shibboleth NameID, to use for the Drupal username.
+   */
+  private function loginUser($username) {
+    $accounts = $this->entityTypeManager
+      ->getStorage('user')
+      ->loadByProperties(['name' => $username]);
+    $account = reset($accounts);
+
+    // Create account if necessary.
+    if (!$account) {
+      $user = User::create([
+        'name' => $username,
+        'mail' => $username . '@uw.edu',
+        'status' => 1,
+      ]);
+      $user->setPassword(substr(password_hash(openssl_random_pseudo_bytes(8), PASSWORD_DEFAULT), rand(4, 16), 32));
+      $user->save();
+    }
+
+    // Set cookie_lifetime to on browser close.
+    ini_set('session.cookie_lifetime', 0);
+
+    // Sync roles, and reload the modified user object.
+    $this->syncRoles($account);
+    $accounts = $this->entityTypeManager
+      ->getStorage('user')
+      ->loadByProperties(['name' => $username]);
+    $account = reset($accounts);
+    user_login_finalize($account);
+  }
+
+  /**
+   * Map UW Groups or AD group membership to roles.
    *
    * @param \Drupal\user\UserInterface $account
    *   A user object.
    *
-   * @return array
-   *   An array of group names.
+   * @return array<string>
+   *   An array of role names.
    */
-  private function fetchAdGroups(UserInterface $account) {
-    $username = $account->getAccountName();
+  private function mapGroupsRoles(UserInterface $account) {
+    switch ($this->settings->get('group.source')) {
+      case 'gws':
+        $group_membership = $this->fetchGwsGroups($account);
+        break;
 
-    // Search Filter.
-    $search_filter = "(sAMAccountName=" . $username . ")";
+      case 'ad':
+        $group_membership = $this->fetchAdGroups($account);
+        break;
 
-    // Query Active Directory for user, and fetch group membership.
-    $ad_conn = ldap_connect($this->settings->get('ad.uri'));
-    if (($this->settings->get('ad.binddn') !== NULL) && ($this->settings->get('ad.bindpass') !== NULL)) {
-      ldap_bind($ad_conn, $this->settings->get('ad.binddn'), $this->settings->get('ad.bindpass'));
+      default:
+        $group_membership = [];
+        break;
     }
-    $ad_search = ldap_search($ad_conn, $this->settings->get('ad.basedn'), $search_filter, ['memberOf']);
-    $ad_search_results = ldap_get_entries($ad_conn, $ad_search);
 
-    // Extract group names from DNs.
-    $ad_groups = [];
-    foreach ($ad_search_results[0]['memberof'] as $entry) {
-      if (preg_match("/^CN=([a-zA-Z0-9_\- ]+)/", $entry, $matches)) {
-        $ad_groups[] = (string) $matches[1];
+    // Group to Role maps are stored as a multi-line string, containing pipe-
+    // delimited key-value pairs.
+    $group_role_map = array();
+    foreach (preg_split("/((\r?\n)|(\r\n?))/", $this->settings->get('group.map')) as $entry) {
+      $pair = explode('|', $entry);
+      $group_role_map[(string) $pair[0]] = (string) $pair[1];
+    }
+
+    // Loop through group list, and extract matching roles.
+    $mapped_roles = array();
+    foreach ($group_membership as $group) {
+      if (array_key_exists($group, $group_role_map)) {
+        $mapped_roles[] = (string) $group_role_map[$group];
       }
     }
 
-    return $ad_groups;
+    return $mapped_roles;
+  }
+
+  /**
+   * Does the user need to be logged in using the Shibboleth session ?
+   *
+   * Only handle requests if a group source is configured, or if login without
+   * groups is chosen.
+   *
+   * @return bool
+   *   Needed ?
+   */
+  protected function needsLogin() {
+    $group_source = $this->settings->get('group.source');
+    if ($group_source === "none") {
+      $this->debug->message("Group source: 'none'.");
+      return FALSE;
+    }
+    $this->debug->message($this->t("Group source '@source'.", ['@source' => $group_source]));
+    return TRUE;
+  }
+
+  /**
+   * Redirect user back to the requested page.
+   */
+  private function redirectUser() {
+    // Disable Page Cache to prevent redirect response from being cached.
+    $this->killSwitch->trigger();
+    $current_uri = $this->requestStack->getCurrentRequest()->getRequestUri();
+    $redirect = LocalRedirectResponse::create($current_uri);
+    return $redirect;
+  }
+
+  /**
+   * Synchronize roles with UW Groups or Active Directory.
+   *
+   * @param \Drupal\user\UserInterface $account
+   *   A user object.
+   */
+  private function syncRoles(UserInterface $account) {
+    $roles_existing = user_roles(TRUE);
+    $roles_assigned = $account->getRoles(TRUE);
+    $mapped_roles = $this->mapGroupsRoles($account);
+
+    // Remove from roles they are no longer assigned to.
+    foreach ($roles_assigned as $role_assigned) {
+      if (!in_array($role_assigned, $mapped_roles)) {
+        $account->removeRole($role_assigned);
+      }
+    }
+
+    // Add to newly assigned roles.
+    foreach ($mapped_roles as $mapped) {
+      if (array_key_exists($mapped, $roles_existing)) {
+        $account->addRole($mapped);
+      }
+    }
+
+    $account->save();
   }
 
 }
