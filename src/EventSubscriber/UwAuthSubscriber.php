@@ -4,12 +4,12 @@ namespace Drupal\uwauth\EventSubscriber;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\PageCache\ResponsePolicy\KillSwitch;
+use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\user\Entity\User;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Routing\LocalRedirectResponse;
-use Drupal\user\UserInterface;
 use Drupal\uwauth\Debug;
 use Drupal\uwauth\Form\UwAuthSettingsForm;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -100,13 +100,13 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   /**
    * Fetch group membership from Active Directory.
    *
-   * @param \Drupal\user\UserInterface $account
+   * @param \Drupal\Core\Session\AccountInterface $account
    *   A user object.
    *
    * @return array
    *   An array of group names.
    */
-  private function fetchAdGroups(UserInterface $account) {
+  private function fetchAdGroups(AccountInterface $account) {
     $username = $account->getAccountName();
 
     // Search Filter.
@@ -134,13 +134,13 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   /**
    * Fetch group membership from UW Groups.
    *
-   * @param \Drupal\user\UserInterface $account
+   * @param \Drupal\Core\Session\AccountInterface $account
    *   A user object.
    *
    * @return array<string>
    *   An array of group names.
    */
-  private function fetchGwsGroups(UserInterface $account) {
+  private function fetchGwsGroups(AccountInterface $account) {
 
     $username = $account->getAccountName();
 
@@ -297,8 +297,9 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     // Set cookie_lifetime to on browser close.
     ini_set('session.cookie_lifetime', 0);
 
-    // Sync roles, and reload the modified user object.
+    // Sync roles, and reload the modified user object if needed.
     $this->syncRoles($account);
+
     $accounts = $this->entityTypeManager
       ->getStorage('user')
       ->loadByProperties(['name' => $username]);
@@ -309,22 +310,27 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   /**
    * Map UW Groups or AD group membership to roles.
    *
-   * @param \Drupal\user\UserInterface $account
+   * @param \Drupal\Core\Session\AccountInterface $account
    *   A user object.
    *
    * @return array<string>
    *   An array of role names.
    */
-  private function mapGroupsRoles(UserInterface $account) {
+  private function mapGroupsRoles(AccountInterface $account) {
     switch ($this->settings->get('group.source')) {
-      case 'gws':
+      case UwAuthSettingsForm::SYNC_GROUPS:
         $group_membership = $this->fetchGwsGroups($account);
         break;
 
-      case 'ad':
+      case UwAuthSettingsForm::SYNC_AD:
         $group_membership = $this->fetchAdGroups($account);
         break;
 
+      case UwAuthSettingsForm::SYNC_LOCAL:
+        $group_membership = $account->getRoles();
+        break;
+
+      case UwAuthSettingsForm::SYNC_NONE:
       default:
         $group_membership = [];
         break;
@@ -360,12 +366,8 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    */
   protected function needsLogin() {
     $group_source = $this->settings->get('group.source');
-    if ($group_source === "none") {
-      $this->debug->message("Group source: 'none'.");
-      return FALSE;
-    }
     $this->debug->message($this->t("Group source '@source'.", ['@source' => $group_source]));
-    return TRUE;
+    return $group_source !== UwAuthSettingsForm::SYNC_NONE;
   }
 
   /**
@@ -382,10 +384,15 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   /**
    * Synchronize roles with UW Groups or Active Directory.
    *
-   * @param \Drupal\user\UserInterface $account
+   * @param \Drupal\Core\Session\AccountInterface $account
    *   A user object.
    */
-  private function syncRoles(UserInterface $account) {
+  private function syncRoles(AccountInterface $account) {
+    // Local groups do not need to be resynchronized.
+    if ($this->settings->get('group.source') == UwAuthSettingsForm::SYNC_LOCAL) {
+      return;
+    }
+
     $roles_existing = user_roles(TRUE);
     $roles_assigned = $account->getRoles(TRUE);
     $mapped_roles = $this->mapGroupsRoles($account);

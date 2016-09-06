@@ -13,6 +13,10 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class UwAuthSettingsForm extends ConfigFormBase {
   const SETTINGS_NAME = 'uwauth.settings';
+  const SYNC_AD = 'ad';
+  const SYNC_GROUPS = 'gws';
+  const SYNC_LOCAL = 'local';
+  const SYNC_NONE = 'none';
 
   /**
    * The config.typed service.
@@ -113,10 +117,10 @@ class UwAuthSettingsForm extends ConfigFormBase {
       '#title' => t('Group Source'),
       '#description' => t('Choose your group membership source, or none to disable.'),
       '#options' => array(
-        'gws' => t('Groups Web Service'),
-        'ad' => t('Active Directory'),
-        'login' => t('None, but login'),
-        'none' => t("None, don't login"),
+        static::SYNC_GROUPS => t('Groups Web Service'),
+        static::SYNC_AD => t('Active Directory'),
+        static::SYNC_LOCAL => t('Local Drupal groups'),
+        static::SYNC_NONE => t("None, don't login"),
       ),
       '#default_value' => $groupSource,
     );
@@ -139,7 +143,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
       '#type' => 'details',
       '#title' => t('Groups Web Service'),
       '#description' => t('If using GWS as your group source, please provide the paths to your UW certificates. For security purposes, the certificates should be stored outside of your website root.'),
-      '#open' => $groupSource === 'gws',
+      '#open' => $groupSource === static::SYNC_GROUPS,
     );
 
     $form['uwauth_gws']['cert'] = array(
@@ -167,7 +171,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
       '#type' => 'details',
       '#title' => t('Active Directory'),
       '#description' => t('If using AD as your group source, please provide the LDAP URI and Base DN for your domain. For anonymous lookups, leave the Bind DN and Bind Password fields blank.'),
-      '#open' => $groupSource === 'ad',
+      '#open' => $groupSource === static::SYNC_AD,
     );
 
     $form['uwauth_ad']['uri'] = array(
@@ -201,7 +205,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
       '#type' => 'details',
       '#title' => t('Group to Role Mapping'),
       '#description' => t('For group source portability, groups are mapped to roles. Each group can be mapped to a single role.'),
-      '#open' => in_array($groupSource, ['ad', 'gws']),
+      '#open' => in_array($groupSource, [static::SYNC_AD, static::SYNC_GROUPS]),
     );
 
     $form['uwauth_map']['map'] = array(
@@ -219,49 +223,57 @@ class UwAuthSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
+    $baseDn = $form_state->getValue('basedn');
+    $bindDn = $form_state->getValue('binddn');
+    $caCert = $form_state->getValue('cacert');
+    $cert = $form_state->getValue('cert');
+    $key = $form_state->getValue('key');
+    $map = $form_state->getValue('map');
+    $source = $form_state->getValue('source');
+    $uri = $form_state->getValue('uri');
 
-    if (($form_state->getValue('source') == "ad") && ((strlen($form_state->getValue('uri')) == 0) || (strlen($form_state->getValue('basedn')) == 0))) {
+    if (($source == static::SYNC_AD) && ((strlen($uri) == 0) || (strlen($baseDn) == 0))) {
       $form_state->setErrorByName('source', t('Active Directory requires both the URI and Base DN to be configured.'));
     }
 
-    if (($form_state->getValue('source') == "gws") && ((strlen($form_state->getValue('cert')) == 0) || (strlen($form_state->getValue('key')) == 0) || (strlen($form_state->getValue('cacert')) == 0))) {
+    if (($source == static::SYNC_GROUPS) && ((strlen($cert) == 0) || (strlen($key) == 0) || (strlen($caCert) == 0))) {
       $form_state->setErrorByName('source', t('Groups Web Service requires the Certificate, Key, and CA Certificate to be configured.'));
     }
 
-    if ((strlen($form_state->getValue('cert')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $form_state->getValue('cert'))) {
+    if ((strlen($cert) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $cert)) {
       $form_state->setErrorByName('cert', t('The Certificate path contains invalid characters.'));
     }
-    elseif ((strlen($form_state->getValue('cert')) > 0) && !is_readable($form_state->getValue('cert'))) {
+    elseif ((strlen($cert) > 0) && !is_readable($cert)) {
       $form_state->setErrorByName('cert', t('The Certificate file could not be read. Please verify the path is correct.'));
     }
 
-    if ((strlen($form_state->getValue('key')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $form_state->getValue('key'))) {
+    if ((strlen($key) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $key)) {
       $form_state->setErrorByName('key', t('The Key path contains invalid characters.'));
     }
-    elseif ((strlen($form_state->getValue('key')) > 0) && !is_readable($form_state->getValue('key'))) {
+    elseif ((strlen($key) > 0) && !is_readable($key)) {
       $form_state->setErrorByName('key', t('The Key file could not be read. Please verify the path is correct.'));
     }
 
-    if ((strlen($form_state->getValue('cacert')) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $form_state->getValue('cacert'))) {
+    if ((strlen($caCert) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $caCert)) {
       $form_state->setErrorByName('cacert', t('The CA Certificate path contains invalid characters.'));
     }
-    elseif ((strlen($form_state->getValue('cacert')) > 0) && !is_readable($form_state->getValue('cacert'))) {
+    elseif ((strlen($caCert) > 0) && !is_readable($caCert)) {
       $form_state->setErrorByName('cacert', t('The CA Certificate file could not be read. Please verify the path is correct.'));
     }
 
-    if ((strlen($form_state->getValue('uri')) > 0) && (preg_match("/^(ldap:\/\/|ldaps:\/\/)[a-z0-9_\.\-]*[a-z0-9]$/i", $form_state->getValue('uri')) === 0)) {
+    if ((strlen($uri) > 0) && (preg_match("/^(ldap:\/\/|ldaps:\/\/)[a-z0-9_\.\-]*[a-z0-9]$/i", $uri) === 0)) {
       $form_state->setErrorByName('uri', t('The LDAP URI contains invalid characters or formatting.'));
     }
 
-    if ((strlen($form_state->getValue('basedn')) > 0) && (preg_match("/^(OU=|DC=)[a-z0-9_\-=, ]*[a-z0-9]$/i", $form_state->getValue('basedn')) === 0)) {
+    if ((strlen($baseDn) > 0) && (preg_match("/^(OU=|DC=)[a-z0-9_\-=, ]*[a-z0-9]$/i", $baseDn) === 0)) {
       $form_state->setErrorByName('basedn', t('The Base DN contains invalid characters or formatting.'));
     }
 
-    if ((strlen($form_state->getValue('binddn')) > 0) && (preg_match("/^CN=[a-z0-9_\-=, ]*[a-z0-9]$/i", $form_state->getValue('binddn')) === 0)) {
+    if ((strlen($bindDn) > 0) && (preg_match("/^CN=[a-z0-9_\-=, ]*[a-z0-9]$/i", $bindDn) === 0)) {
       $form_state->setErrorByName('binddn', t('The Bind DN contains invalid characters or formatting.'));
     }
 
-    if ((strlen($form_state->getValue('map')) > 0) && preg_match_all("/^([^a-z0-9_\-]*\|[a-z0-9_\-]*|[a-z0-9_\-]*\|[^a-z0-9_\-]*)$/mi", $form_state->getValue('map'))) {
+    if ((strlen($map) > 0) && preg_match_all("/^([^a-z0-9_\-]*\|[a-z0-9_\-]*|[a-z0-9_\-]*\|[^a-z0-9_\-]*)$/mi", $map)) {
       $form_state->setErrorByName('map', t('The Group Map contains invalid characters or formatting.'));
     }
   }
