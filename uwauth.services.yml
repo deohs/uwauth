@@ -17,3 +17,8 @@ services:
   uwauth.debug:
     class: Drupal\uwauth\Debug
     arguments: ['%uwauth.verbose%']
+
+  uwauth.logout_override:
+    class: Drupal\uwauth\EventSubscriber\LogoutOverride
+    tags:
+      - { name: event_subscriber }
