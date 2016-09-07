@@ -4,6 +4,7 @@ namespace Drupal\uwauth\EventSubscriber;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\PageCache\ResponsePolicy\KillSwitch;
+use Drupal\Core\Routing\CurrentRouteMatch;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
@@ -60,6 +61,13 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   protected $requestStack;
 
   /**
+   * The current_route_match service.
+   *
+   * @var \Drupal\Core\Routing\CurrentRouteMatch
+   */
+  protected $route;
+
+  /**
    * The module settings.
    *
    * @var array|mixed|null
@@ -81,6 +89,8 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    *   The config.factory service.
    * @param \Drupal\Core\PageCache\ResponsePolicy\KillSwitch $killSwitch
    *   The page_cache_kill_switch service.
+   * @param \Drupal\Core\Routing\CurrentRouteMatch $route
+   *   The current_route_match service.
    */
   public function __construct(
     RequestStack $requestStack,
@@ -88,13 +98,15 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     Debug $debug,
     AccountProxyInterface $currentUser,
     ConfigFactoryInterface $config,
-    KillSwitch $killSwitch) {
+    KillSwitch $killSwitch,
+    CurrentRouteMatch $route) {
     $this->debug = $debug;
     $this->entityTypeManager = $entity_manager;
     $this->requestStack = $requestStack;
     $this->currentUser = $currentUser;
     $this->settings = $config->get(UwAuthSettingsForm::SETTINGS_NAME);
     $this->killSwitch = $killSwitch;
+    $this->route = $route;
   }
 
   /**
@@ -180,7 +192,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   protected function getFilteredAttributes() {
     // Check for a UW NetID from Shibboleth.
     $attributes = new AttributeBag();
-    $allowedAttributes = array_flip(explode("\n", $this->settings->get('auth.allowed_attributes')));
+    $allowedAttributes = array_flip($this->settings->get('auth.allowed_attributes'));
     $attributeCandidates = $this->requestStack->getCurrentRequest()->server->all();
     foreach ($attributeCandidates as $k => $v) {
       $matches = [];
@@ -218,7 +230,10 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    */
   public function handle(GetResponseEvent $event) {
     $this->debug->message($this->t('User id: @id', ['@id' => $this->currentUser->id()]));
-    if ($this->isLoggedIn() || !$this->needsLogin() || !$this->hasShibbolethSession()) {
+    if ($this->isLoggedIn()
+      || $this->isRouteExcluded()
+      || !$this->needsLogin()
+      || !$this->hasShibbolethSession()) {
       return;
     }
 
@@ -269,6 +284,19 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     }
     $this->debug->message($this->t('Not authenticated'));
     return FALSE;
+  }
+
+  /**
+   * Is the current route excluded from using SSO ?
+   *
+   * @return bool
+   *   Is it ?
+   */
+  protected function isRouteExcluded() {
+    $routeName = $this->route->getCurrentRouteMatch()->getRouteName();
+    $excludedRoutes = $this->settings->get('auth.excluded_routes');
+    $ret = in_array($routeName, $excludedRoutes);
+    return $ret;
   }
 
   /**
@@ -358,8 +386,11 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   /**
    * Does the user need to be logged in using the Shibboleth session ?
    *
-   * Only handle requests if a group source is configured, or if login without
-   * groups is chosen.
+   * Only handle requests
+   * - if
+   *   - a group source is configured,
+   *   - or if login without groups is chosen,
+   * - and the current route is not excluded from SSO.
    *
    * @return bool
    *   Needed ?
@@ -367,7 +398,10 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   protected function needsLogin() {
     $group_source = $this->settings->get('group.source');
     $this->debug->message($this->t("Group source '@source'.", ['@source' => $group_source]));
-    return $group_source !== UwAuthSettingsForm::SYNC_NONE;
+    if ($group_source === UwAuthSettingsForm::SYNC_NONE) {
+      return FALSE;
+    }
+    return TRUE;
   }
 
   /**

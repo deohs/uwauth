@@ -1,14 +1,17 @@
 group:
   source: none
 auth:
-  # The name of the server variable holding the Shibboleth NameID.
-  name_id: 'uid'
   allowed_attributes:
     - 'cn'
     - 'employeeType'
     - 'givenName'
     - 'sn'
     - 'uid'
+  excluded_routes:
+    - 'user.login'
+    - 'user.logout'
+  name_id: 'uid'
+  sp_endoint: '/Shibboleth.sso'
 mail:
   # An array of valid email domains. If empty, any domain is valid.
   valid_domains: []

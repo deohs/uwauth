@@ -54,7 +54,39 @@ Such a mapping may look like this depending on your Shibboleth configuration:
 * in all cases, if the user did not have an active Drupal session, the `login` 
   timestamp field on the user is updated.
   
-    
+
+## Installation
+
+In addition to enabling the module, you need to modify the `.htaccess` at the
+document root, or its equivalent in your vhost definition, to avoid having URLs
+needed by the Shibboleth SP being rewritten.
+
+Before:
+
+    # Pass all requests not referring directly to files in the filesystem to
+    # index.php.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !=/favicon.ico
+    RewriteRule ^ index.php [L]
+
+After:
+
+    # Pass all requests not referring directly to files in the filesystem to
+    # index.php.
+    RewriteCond %{REQUEST_URI} !^/Shibboleth.sso
+    RewriteCond %{REQUEST_URI} !^/secure
+    RewriteCond %{REQUEST_URI} !^/shibboleth-sp
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !=/favicon.ico
+    RewriteRule ^ index.php [L]
+
+Depending on the specifics of your SP configuration, you may want to tune these
+rules. The `/Shibboleth.sso` Shibboleth SP endpoint is configurable in the 
+module settings form at `/admin/config/people/uwauth`.
+
+
 ## Recommended Version
 
 For stable operation, please download or pull a specific tag (release).

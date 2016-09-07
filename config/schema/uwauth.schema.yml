@@ -2,6 +2,36 @@
 uwauth.settings:
   type: config_object
   mapping:
+    auth:
+      type: 'mapping'
+      label: 'Authentication-related settings'
+      mapping:
+        allowed_attributes:
+          type: 'sequence'
+          label: 'Attributes passed from the SP to Drupal'
+          nullable: true
+          sequence:
+            type: 'string'
+            label: 'Attribute/variable'
+            translatable: false
+        excluded_routes:
+          type: 'sequence'
+          label: 'Routes not using SSO, to support local login when not using group mapping'
+          nullable: true
+          sequence:
+            type: 'string'
+            label: 'Route name'
+            translatable: false
+        name_id:
+          type: 'string'
+          label: 'Attribute or variable mapped to the Shibboleth NameID'
+          nullable: false
+          translatable: false
+        sp_endoint:
+          type: 'string'
+          label: 'Path used by the Shibboleth SP endpoint'
+          nullable: false
+          translatable: false
     group:
       type: 'mapping'
       label: 'Groups'

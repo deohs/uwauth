@@ -2,7 +2,7 @@ uwauth.settings:
   path: '/admin/config/people/uwauth'
   defaults:
     _form: '\Drupal\uwauth\Form\UwAuthSettingsForm'
-    _title: 'UW Auth'
+    _title: 'Shibboleth - UW Auth'
   requirements:
     _permission: 'administer site configuration'
 uwauth.logout:

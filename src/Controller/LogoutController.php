@@ -4,6 +4,7 @@ namespace Drupal\uwauth\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Url;
+use Drupal\uwauth\Form\UwAuthSettingsForm;
 
 /**
  * Class LogoutController contains the overridden controller for user.logout.
@@ -13,6 +14,11 @@ class LogoutController extends ControllerBase {
   /**
    * The overridden controller for user.logout.
    *
+   * Do not set the refrehs delay to 0 to avoid having an immediate redirect
+   * without page display.
+   *
+   * @see https://www.w3.org/TR/WCAG20-TECHS/H76.html
+   *
    * @return array
    *   A render array.
    */
@@ -20,10 +26,11 @@ class LogoutController extends ControllerBase {
     $title = $this->t('Logout');
     $frontUrl = Url::fromRoute('<front>', [], ['absolute' => TRUE]);
     $frontString = $frontUrl->toString();
-    $spLogoutUrl = Url::fromUri($frontUrl->toString() . 'Shibboleth.sso/Logout');
+    $spEndpoint = $this->config(UwAuthSettingsForm::SETTINGS_NAME)->get('auth.sp_endpoint');
+    $spLogoutUrl = Url::fromUri($frontUrl->toString() . ltrim("$spEndpoint/Logout", '/'));
     $spLogoutString = $spLogoutUrl->toString();
 
-    $message = $this->t('Logging out of OCEA and Shibboleth IdP');
+    $message = $this->t('Logging out of application and Shibboleth IdP');
 
     $ret['#attached']['html_head'][] = [
       [
@@ -32,7 +39,7 @@ class LogoutController extends ControllerBase {
         '#noscript' => FALSE,
         '#attributes' => [
           'http-equiv' => 'Refresh',
-          'content' => '0; URL=' . $frontString,
+          'content' => '1; URL=' . $frontString,
         ],
       ],
       'shibboleth-logout-redirect',

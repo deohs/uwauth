@@ -72,6 +72,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $form = $this->buildUwSettings($form, $form_state);
+    $form = $this->buildLocalSettings($form, $form_state);
     $form = $this->buildMailSettings($form, $form_state);
     return parent::buildForm($form, $form_state);
   }
@@ -89,7 +90,37 @@ class UwAuthSettingsForm extends ConfigFormBase {
    */
   protected function buildMailSettings(array $form, FormStateInterface $form_state) {
     $schema = $this->configTyped->getDefinition(static::SETTINGS_NAME)['mapping']['mail'];
-    ksm($this->settings, $schema);
+    return $form;
+  }
+
+  /**
+   * Build the Drupal-local-groups-related part of the form.
+   *
+   * @param array $form
+   *   The form array.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   *
+   * @return array
+   *   The modified form array.
+   */
+  protected function buildLocalSettings(array $form, FormStateInterface $form_state) {
+    $groupSource = $this->settings->get('group.source');
+    $form['uwauth_local'] = array(
+      '#type' => 'details',
+      '#title' => t('Local Drupal groups'),
+      '#open' => $groupSource === static::SYNC_LOCAL,
+    );
+
+    $excludedRoutes = $this->settings->get('auth.excluded_routes');
+    $excludedRoutes = implode("\n", $excludedRoutes);
+    $form['uwauth_local']['excluded_routes'] = [
+      '#cols' => 20,
+      '#default_value' => $excludedRoutes,
+      '#description' => t('List the routes not using SSO, one per line.'),
+      '#title' => $this->t('Excluded routes'),
+      '#type' => 'textarea',
+    ];
     return $form;
   }
 
@@ -131,12 +162,20 @@ class UwAuthSettingsForm extends ConfigFormBase {
       '#title' => $this->t('NameID name'),
       '#type' => 'textfield',
     ];
+    $allowedAttributes = $this->settings->get('auth.allowed_attributes');
+    $allowedAttributes = implode("\n", $allowedAttributes);
     $form['uwauth_general']['allowed_attributes'] = [
       '#cols' => 20,
-      '#default_value' => $this->settings->get('auth.allowed_attributes'),
+      '#default_value' => $allowedAttributes,
       '#description' => t('List the allowed attributes, one per line'),
       '#title' => $this->t('Allowed attributes'),
       '#type' => 'textarea',
+    ];
+    $form['uwauth_general']['sp_endpoint'] = [
+      '#default_value' => $this->settings->get('auth.sp_endpoint'),
+      '#description' => t('The path used by the Shibboleth SP endpoint, usually /Shibboleth.sso.'),
+      '#title' => $this->t('Shibboleth SP endpoint'),
+      '#type' => 'textfield',
     ];
 
     $form['uwauth_gws'] = array(
@@ -282,9 +321,19 @@ class UwAuthSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
+    $allowedAttributes = $form_state->getValue('allowed_attributes');
+    $allowedAttributes = explode("\n", "$allowedAttributes\n");
+    $allowedAttributes = array_filter(array_map('trim', $allowedAttributes));
+
+    $excludedRoutes = $form_state->getValue('excluded_routes');
+    $excludedRoutes = explode("\n", "$excludedRoutes\n");
+    $excludedRoutes = array_filter(array_map('trim', $excludedRoutes));
+
     $this->settings
+      ->set('auth.allowed_attributes', $allowedAttributes)
+      ->set('auth.excluded_routes', $excludedRoutes)
       ->set('auth.name_id', $form_state->getValue('name_id'))
-      ->set('auth.allowed_attributes', $form_state->getValue('allowed_attributes'))
+      ->set('auth.sp_endpoint', $form_state->getValue('sp_endpoint'))
       ->set('gws.cert', $form_state->getValue('cert'))
       ->set('gws.key', $form_state->getValue('key'))
       ->set('gws.cacert', $form_state->getValue('cacert'))

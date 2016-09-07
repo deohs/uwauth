@@ -11,6 +11,7 @@ services:
       - '@current_user'
       - '@config.factory'
       - '@page_cache_kill_switch'
+      - '@current_route_match'
     tags:
       - { name: event_subscriber }
 
