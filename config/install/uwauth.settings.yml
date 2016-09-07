@@ -13,5 +13,5 @@ auth:
   name_id: 'uid'
   sp_endoint: '/Shibboleth.sso'
 mail:
-  # An array of valid email domains. If empty, any domain is valid.
-  valid_domains: []
+  valid_domains:
+    - 'uw.edu'

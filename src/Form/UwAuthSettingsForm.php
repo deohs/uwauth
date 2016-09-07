@@ -3,7 +3,6 @@
 namespace Drupal\uwauth\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -13,17 +12,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class UwAuthSettingsForm extends ConfigFormBase {
   const SETTINGS_NAME = 'uwauth.settings';
+  const DEFAULT_SP_ENDPOINT = '/Shibboleth.sso';
   const SYNC_AD = 'ad';
   const SYNC_GROUPS = 'gws';
   const SYNC_LOCAL = 'local';
   const SYNC_NONE = 'none';
-
-  /**
-   * The config.typed service.
-   *
-   * @var \Drupal\Core\Config\Schema\TypedConfigInterface
-   */
-  protected $configTyped;
 
   /**
    * The module settings.
@@ -35,9 +28,8 @@ class UwAuthSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function __construct(ConfigFactoryInterface $configFactory, TypedConfigManagerInterface $configTyped) {
+  public function __construct(ConfigFactoryInterface $configFactory) {
     parent::__construct($configFactory);
-    $this->configTyped = $configTyped;
     $this->settings = $this->config(static::SETTINGS_NAME);
   }
 
@@ -89,7 +81,14 @@ class UwAuthSettingsForm extends ConfigFormBase {
    *   The modified form array.
    */
   protected function buildMailSettings(array $form, FormStateInterface $form_state) {
-    $schema = $this->configTyped->getDefinition(static::SETTINGS_NAME)['mapping']['mail'];
+    $validDomains = $this->settings->get('mail.valid_domains');
+    $validDomains = implode("\n", $validDomains);
+    $form['uwauth_general']['valid_domains'] = [
+      '#default_value' => $validDomains,
+      '#description' => $this->t('The list of domains allowed for email addresses.'),
+      '#title' => $this->t('Valid email domains'),
+      '#type' => 'textarea',
+    ];
     return $form;
   }
 
@@ -108,7 +107,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $groupSource = $this->settings->get('group.source');
     $form['uwauth_local'] = array(
       '#type' => 'details',
-      '#title' => t('Local Drupal groups'),
+      '#title' => $this->t('Local Drupal groups'),
       '#open' => $groupSource === static::SYNC_LOCAL,
     );
 
@@ -117,7 +116,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $form['uwauth_local']['excluded_routes'] = [
       '#cols' => 20,
       '#default_value' => $excludedRoutes,
-      '#description' => t('List the routes not using SSO, one per line.'),
+      '#description' => $this->t('List the routes not using SSO, one per line.'),
       '#title' => $this->t('Excluded routes'),
       '#type' => 'textarea',
     ];
@@ -138,27 +137,27 @@ class UwAuthSettingsForm extends ConfigFormBase {
   protected function buildUwSettings(array $form, FormStateInterface $form_state) {
     $form['uwauth_general'] = array(
       '#type' => 'details',
-      '#title' => t('General'),
+      '#title' => $this->t('General'),
       '#open' => TRUE,
     );
 
     $groupSource = $this->settings->get('group.source');
     $form['uwauth_general']['source'] = array(
       '#type' => 'select',
-      '#title' => t('Group Source'),
-      '#description' => t('Choose your group membership source, or none to disable.'),
+      '#title' => $this->t('Group Source'),
+      '#description' => $this->t('Choose your group membership source, or none to disable.'),
       '#options' => array(
-        static::SYNC_GROUPS => t('Groups Web Service'),
-        static::SYNC_AD => t('Active Directory'),
-        static::SYNC_LOCAL => t('Local Drupal groups'),
-        static::SYNC_NONE => t("None, don't login"),
+        static::SYNC_GROUPS => $this->t('Groups Web Service'),
+        static::SYNC_AD => $this->t('Active Directory'),
+        static::SYNC_LOCAL => $this->t('Local Drupal groups'),
+        static::SYNC_NONE => $this->t("None, don't login"),
       ),
       '#default_value' => $groupSource,
     );
 
     $form['uwauth_general']['name_id'] = [
       '#default_value' => $this->settings->get('auth.name_id'),
-      '#description' => t('The property used as Shibboleth NameID, to be used as Drupal username.'),
+      '#description' => $this->t('The property used as Shibboleth NameID, to be used as Drupal username.'),
       '#title' => $this->t('NameID name'),
       '#type' => 'textfield',
     ];
@@ -167,90 +166,95 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $form['uwauth_general']['allowed_attributes'] = [
       '#cols' => 20,
       '#default_value' => $allowedAttributes,
-      '#description' => t('List the allowed attributes, one per line'),
+      '#description' => $this->t('List the allowed attributes, one per line'),
       '#title' => $this->t('Allowed attributes'),
       '#type' => 'textarea',
     ];
+
     $form['uwauth_general']['sp_endpoint'] = [
       '#default_value' => $this->settings->get('auth.sp_endpoint'),
-      '#description' => t('The path used by the Shibboleth SP endpoint, usually /Shibboleth.sso.'),
+      '#description' => $this->t('The path used by the Shibboleth SP endpoint, usually <code>@path</code>.', [
+        '@path' => static::DEFAULT_SP_ENDPOINT,
+      ]),
+      '#placeholder' => static::DEFAULT_SP_ENDPOINT,
+      '#required' => TRUE,
       '#title' => $this->t('Shibboleth SP endpoint'),
       '#type' => 'textfield',
     ];
 
     $form['uwauth_gws'] = array(
       '#type' => 'details',
-      '#title' => t('Groups Web Service'),
-      '#description' => t('If using GWS as your group source, please provide the paths to your UW certificates. For security purposes, the certificates should be stored outside of your website root.'),
+      '#title' => $this->t('Groups Web Service'),
+      '#description' => $this->t('If using GWS as your group source, please provide the paths to your UW certificates. For security purposes, the certificates should be stored outside of your website root.'),
       '#open' => $groupSource === static::SYNC_GROUPS,
     );
 
     $form['uwauth_gws']['cert'] = array(
       '#type' => 'textfield',
-      '#title' => t('Certificate Path'),
-      '#description' => t('Example: /etc/ssl/drupal_uwca_cert.pem'),
+      '#title' => $this->t('Certificate Path'),
+      '#description' => $this->t('Example: /etc/ssl/drupal_uwca_cert.pem'),
       '#default_value' => $this->settings->get('gws.cert'),
     );
 
     $form['uwauth_gws']['key'] = array(
       '#type' => 'textfield',
-      '#title' => t('Private Key Path'),
-      '#description' => t('Example: /etc/ssl/drupal_uwca_key.pem'),
+      '#title' => $this->t('Private Key Path'),
+      '#description' => $this->t('Example: /etc/ssl/drupal_uwca_key.pem'),
       '#default_value' => $this->settings->get('gws.key'),
     );
 
     $form['uwauth_gws']['cacert'] = array(
       '#type' => 'textfield',
-      '#title' => t('CA Certificate Path'),
-      '#description' => t('Example: /etc/ssl/drupal_uwca_ca.pem'),
+      '#title' => $this->t('CA Certificate Path'),
+      '#description' => $this->t('Example: /etc/ssl/drupal_uwca_ca.pem'),
       '#default_value' => $this->settings->get('gws.cacert'),
     );
 
     $form['uwauth_ad'] = array(
       '#type' => 'details',
-      '#title' => t('Active Directory'),
-      '#description' => t('If using AD as your group source, please provide the LDAP URI and Base DN for your domain. For anonymous lookups, leave the Bind DN and Bind Password fields blank.'),
+      '#title' => $this->t('Active Directory'),
+      '#description' => $this->t('If using AD as your group source, please provide the LDAP URI and Base DN for your domain. For anonymous lookups, leave the Bind DN and Bind Password fields blank.'),
       '#open' => $groupSource === static::SYNC_AD,
     );
 
     $form['uwauth_ad']['uri'] = array(
       '#type' => 'textfield',
-      '#title' => t('LDAP URI'),
-      '#description' => t('Example: ldap://domaincontroller.example.org'),
+      '#title' => $this->t('LDAP URI'),
+      '#description' => $this->t('Example: ldap://domaincontroller.example.org'),
       '#default_value' => $this->settings->get('ad.uri'),
     );
 
     $form['uwauth_ad']['basedn'] = array(
       '#type' => 'textfield',
-      '#title' => t('Base DN'),
-      '#description' => t('Example: DC=example,DC=org'),
+      '#title' => $this->t('Base DN'),
+      '#description' => $this->t('Example: DC=example,DC=org'),
       '#default_value' => $this->settings->get('ad.basedn'),
     );
 
     $form['uwauth_ad']['binddn'] = array(
       '#type' => 'textfield',
-      '#title' => t('Bind DN'),
-      '#description' => t('Example: CN=drupal,CN=Users,DC=example,DC=org'),
+      '#title' => $this->t('Bind DN'),
+      '#description' => $this->t('Example: CN=drupal,CN=Users,DC=example,DC=org'),
       '#default_value' => $this->settings->get('ad.binddn'),
     );
 
     $form['uwauth_ad']['bindpass'] = array(
       '#type' => 'password',
-      '#title' => t('Bind Password'),
-      '#description' => t('NOTE: If a bind password has been set, leave this field blank to leave it unchanged.'),
+      '#title' => $this->t('Bind Password'),
+      '#description' => $this->t('NOTE: If a bind password has been set, leave this field blank to leave it unchanged.'),
     );
 
     $form['uwauth_map'] = array(
       '#type' => 'details',
-      '#title' => t('Group to Role Mapping'),
-      '#description' => t('For group source portability, groups are mapped to roles. Each group can be mapped to a single role.'),
+      '#title' => $this->t('Group to Role Mapping'),
+      '#description' => $this->t('For group source portability, groups are mapped to roles. Each group can be mapped to a single role.'),
       '#open' => in_array($groupSource, [static::SYNC_AD, static::SYNC_GROUPS]),
     );
 
     $form['uwauth_map']['map'] = array(
       '#type' => 'textarea',
-      '#title' => t('Group Map'),
-      '#description' => t('Note: Each row corresponds to a single group to role mapping. The format is group|role. All roles should be entered as their machine name.'),
+      '#title' => $this->t('Group Map'),
+      '#description' => $this->t('Note: Each row corresponds to a single group to role mapping. The format is group|role. All roles should be entered as their machine name.'),
       '#default_value' => $this->settings->get('group.map'),
       '#rows' => 15,
     );
@@ -318,22 +322,37 @@ class UwAuthSettingsForm extends ConfigFormBase {
   }
 
   /**
+   * Convert a multi-line form state value to an array of non-empty strings.
+   *
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   * @param string $key
+   *   The key for the value in form state.
+   *
+   * @return array<string>
+   *   The value as an array of single-line, non empty strings.
+   */
+  public static function getTextFromValues(FormStateInterface $form_state, $key) {
+    $rawValue = $form_state->getValue($key);
+    $arrayValue = explode("\n", "$rawValue\n");
+    $ret = array_filter(array_map('trim', $arrayValue));
+    return $ret;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $allowedAttributes = $form_state->getValue('allowed_attributes');
-    $allowedAttributes = explode("\n", "$allowedAttributes\n");
-    $allowedAttributes = array_filter(array_map('trim', $allowedAttributes));
-
-    $excludedRoutes = $form_state->getValue('excluded_routes');
-    $excludedRoutes = explode("\n", "$excludedRoutes\n");
-    $excludedRoutes = array_filter(array_map('trim', $excludedRoutes));
+    $allowedAttributes = static::getTextFromValues($form_state, 'allowed_attributes');
+    $excludedRoutes = static::getTextFromValues($form_state, 'excluded_routes');
+    $validDomains = static::getTextFromValues($form_state, 'valid_domains');
 
     $this->settings
       ->set('auth.allowed_attributes', $allowedAttributes)
       ->set('auth.excluded_routes', $excludedRoutes)
       ->set('auth.name_id', $form_state->getValue('name_id'))
       ->set('auth.sp_endpoint', $form_state->getValue('sp_endpoint'))
+      ->set('mail.valid_domains', $validDomains)
       ->set('gws.cert', $form_state->getValue('cert'))
       ->set('gws.key', $form_state->getValue('key'))
       ->set('gws.cacert', $form_state->getValue('cacert'))

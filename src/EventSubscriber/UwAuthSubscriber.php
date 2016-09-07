@@ -2,6 +2,7 @@
 
 namespace Drupal\uwauth\EventSubscriber;
 
+use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\PageCache\ResponsePolicy\KillSwitch;
 use Drupal\Core\Routing\CurrentRouteMatch;
@@ -16,6 +17,7 @@ use Drupal\uwauth\Form\UwAuthSettingsForm;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBag;
+use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 
@@ -107,6 +109,41 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     $this->settings = $config->get(UwAuthSettingsForm::SETTINGS_NAME);
     $this->killSwitch = $killSwitch;
     $this->route = $route;
+  }
+
+  /**
+   * Create a user object from defaults, username and filtered attributes.
+   *
+   * @param string $username
+   *   The user machine name.
+   * @param \Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface $attributes
+   *   The filtered attributes to inject in the user creation.
+   *
+   * @return \Drupal\user\Entity\User
+   *   The new or existing user account.
+   *
+   * @TODO add support for more attributes.
+   *
+   * @see https://tools.ietf.org/html/rfc2606#section-2
+   */
+  protected function createUser($username, AttributeBagInterface $attributes) {
+    $mail = $attributes->get('mail') ?: $username . '@uw.edu';
+    $domain = Unicode::substr(strrchr($mail, "@"), 1);
+    $validDomains = $this->settings->get('mail.valid_domains');
+    // Ensure an invalid, non-reservable domain, to ensure mails are not being
+    // sent to an unknown server; as per RFC 2606 section 2.
+    if (!in_array($domain, $validDomains)) {
+      $mail = "$username@uwauth.invalid";
+    }
+    $account = User::create([
+      'init' => $mail,
+      'mail' => $mail,
+      'name' => $username,
+      'status' => 1,
+    ]);
+    $account->setPassword(Unicode::substr(password_hash(openssl_random_pseudo_bytes(8), PASSWORD_DEFAULT), rand(4, 16), 32));
+    $account->save();
+    return $account;
   }
 
   /**
@@ -226,6 +263,23 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   }
 
   /**
+   * Get an account User entity by username.
+   *
+   * @param string $username
+   *   The user name for which to load a User entity.
+   *
+   * @return \Drupal\user\Entity\User|false
+   *   The loaded User entity, or FALSE if none matched the user name.
+   */
+  protected function getUserByName($username) {
+    $accounts = $this->entityTypeManager
+      ->getStorage('user')
+      ->loadByProperties(['name' => $username]);
+    $account = reset($accounts);
+    return $account;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function handle(GetResponseEvent $event) {
@@ -243,7 +297,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
       return;
     }
 
-    $this->loginUser($username);
+    $this->loginUser($username, $attributes);
     $event->setResponse($this->redirectUser());
   }
 
@@ -304,34 +358,23 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    *
    * @param string $username
    *   The Shibboleth NameID, to use for the Drupal username.
+   * @param \Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface $attributes
+   *   The filtered attributes passed by the SP.
    */
-  private function loginUser($username) {
-    $accounts = $this->entityTypeManager
-      ->getStorage('user')
-      ->loadByProperties(['name' => $username]);
-    $account = reset($accounts);
-
-    // Create account if necessary.
+  private function loginUser($username, AttributeBagInterface $attributes) {
+    $account = $this->getUserByName($username);
     if (!$account) {
-      $user = User::create([
-        'name' => $username,
-        'mail' => $username . '@uw.edu',
-        'status' => 1,
-      ]);
-      $user->setPassword(substr(password_hash(openssl_random_pseudo_bytes(8), PASSWORD_DEFAULT), rand(4, 16), 32));
-      $user->save();
+      $account = $this->createUser($username, $attributes);
     }
 
     // Set cookie_lifetime to on browser close.
     ini_set('session.cookie_lifetime', 0);
 
-    // Sync roles, and reload the modified user object if needed.
     $this->syncRoles($account);
 
-    $accounts = $this->entityTypeManager
-      ->getStorage('user')
-      ->loadByProperties(['name' => $username]);
-    $account = reset($accounts);
+    // The user object may have been modified by syncRoles.
+    $account = $this->getUserByName($username);
+
     user_login_finalize($account);
   }
 
