@@ -5,6 +5,8 @@ namespace Drupal\uwauth\Form;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Session\AccountProxyInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -19,6 +21,20 @@ class UwAuthSettingsForm extends ConfigFormBase {
   const SYNC_NONE = 'none';
 
   /**
+   * The current_user service.
+   *
+   * @var \Drupal\Core\Session\AccountProxyInterface
+   */
+  protected $account;
+
+  /**
+   * The logger_channel.uwauth service.
+   *
+   * @var \Psr\Log\LoggerInterface
+   */
+  protected $logger;
+
+  /**
    * The module settings.
    *
    * @var \Drupal\Core\Config\Config
@@ -28,8 +44,10 @@ class UwAuthSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function __construct(ConfigFactoryInterface $configFactory) {
+  public function __construct(ConfigFactoryInterface $configFactory, LoggerInterface $logger, AccountProxyInterface $account) {
     parent::__construct($configFactory);
+    $this->account = $account;
+    $this->logger = $logger;
     $this->settings = $this->config(static::SETTINGS_NAME);
   }
 
@@ -39,7 +57,8 @@ class UwAuthSettingsForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('config.factory'),
-      $container->get('config.typed')
+      $container->get('logger.channel.uwauth'),
+      $container->get('current_user')
     );
   }
 
@@ -63,6 +82,9 @@ class UwAuthSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
+    $this->logger->info('User @name accessed the SSO configuration form', [
+      '@name' => $this->account->getDisplayName(),
+    ]);
     $form = $this->buildUwSettings($form, $form_state);
     $form = $this->buildLocalSettings($form, $form_state);
     $form = $this->buildMailSettings($form, $form_state);
@@ -319,6 +341,12 @@ class UwAuthSettingsForm extends ConfigFormBase {
     if ((strlen($map) > 0) && preg_match_all("/^([^a-z0-9_\-]*\|[a-z0-9_\-]*|[a-z0-9_\-]*\|[^a-z0-9_\-]*)$/mi", $map)) {
       $form_state->setErrorByName('map', t('The Group Map contains invalid characters or formatting.'));
     }
+
+    if ($form_state->getErrors()) {
+      $this->logger->info('User {name} attempted to change SSO configuration and failed.', [
+        'name' => $this->account->getDisplayName(),
+      ]);
+    }
   }
 
   /**
@@ -368,6 +396,9 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $this->settings->save();
 
     parent::submitForm($form, $form_state);
+    $this->logger->warning('User {name} changed the SSO configuration.', [
+      'name' => $this->account->getDisplayName(),
+    ]);
   }
 
 }

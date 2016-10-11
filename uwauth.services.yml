@@ -1,7 +1,12 @@
 parameters:
   uwauth.verbose: false
+  uwauth.channel: 'uwauth'
 
 services:
+  logger.channel.uwauth:
+    parent: logger.channel_base
+    arguments: ['%uwauth.channel%']
+
   uwauth.eventsubscriber:
     class: Drupal\uwauth\EventSubscriber\UwAuthSubscriber
     arguments:
