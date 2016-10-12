@@ -25,7 +25,7 @@ The module was designed and tested using Apache with `mod_shib_24`.
 Shibboleth is assumed to be configured to expose:
 
 * `name` or `REDIRECT-name` : the Shibboleth `NameID`, typically set in 
-  `/etc/shibbolet/attribute-map.xml`.
+  `/etc/shibboleth/attribute-map.xml`.
 * `mail` or `REDIRECT-mail` : optional ; an e-mail address in string form.
 
 

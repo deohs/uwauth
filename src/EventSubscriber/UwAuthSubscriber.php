@@ -14,6 +14,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Routing\LocalRedirectResponse;
 use Drupal\uwauth\Debug;
 use Drupal\uwauth\Form\UwAuthSettingsForm;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBag;
@@ -56,6 +57,13 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   protected $killSwitch;
 
   /**
+   * The logger.channel.uwauth service.
+   *
+   * @var \Psr\Log\LoggerInterface
+   */
+  protected $logger;
+
+  /**
    * The request.
    *
    * @var \Symfony\Component\HttpFoundation\RequestStack
@@ -77,6 +85,13 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   protected $settings;
 
   /**
+   * A hash of severity level by group sync method.
+   *
+   * @var array<string,string>
+   */
+  protected $severity;
+
+  /**
    * Constructs a UW Auth event subscriber.
    *
    * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
@@ -93,6 +108,10 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    *   The page_cache_kill_switch service.
    * @param \Drupal\Core\Routing\CurrentRouteMatch $route
    *   The current_route_match service.
+   * @param \Psr\Log\LoggerInterface $logger
+   *   The logger.channel.uwauth logger channel.
+   * @param array<string,string> $severity
+   *   The severity levels to use for each role sync method.
    */
   public function __construct(
     RequestStack $requestStack,
@@ -101,14 +120,18 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     AccountProxyInterface $currentUser,
     ConfigFactoryInterface $config,
     KillSwitch $killSwitch,
-    CurrentRouteMatch $route) {
+    CurrentRouteMatch $route,
+    LoggerInterface $logger,
+    array $severity) {
+    $this->currentUser = $currentUser;
     $this->debug = $debug;
     $this->entityTypeManager = $entity_manager;
-    $this->requestStack = $requestStack;
-    $this->currentUser = $currentUser;
-    $this->settings = $config->get(UwAuthSettingsForm::SETTINGS_NAME);
     $this->killSwitch = $killSwitch;
+    $this->logger = $logger;
+    $this->requestStack = $requestStack;
     $this->route = $route;
+    $this->settings = $config->get(UwAuthSettingsForm::SETTINGS_NAME);
+    $this->severity = $severity;
   }
 
   /**
@@ -176,6 +199,10 @@ class UwAuthSubscriber implements EventSubscriberInterface {
         $ad_groups[] = (string) $matches[1];
       }
     }
+    $this->logger->log($this->severity['ad_sync'], 'Fetched groups from AD for {name}: got {groups}.', [
+      'name' => $account->getDisplayName(),
+      'groups' => implode(', ', $ad_groups),
+    ]);
 
     return $ad_groups;
   }
@@ -216,6 +243,11 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     foreach ($uwgws_entries as $uwgws_entry) {
       $uwgws_groups[] = (string) $uwgws_entry[0];
     }
+
+    $this->logger->log($this->severity['ad_sync'], 'Fetched groups from GWS for {name}: got {groups}.', [
+      'name' => $account->getDisplayName(),
+      'groups' => implode(', ', $uwgws_groups),
+    ]);
 
     return $uwgws_groups;
   }
@@ -467,6 +499,9 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   private function syncRoles(AccountInterface $account) {
     // Local groups do not need to be resynchronized.
     if ($this->settings->get('group.source') == UwAuthSettingsForm::SYNC_LOCAL) {
+      $this->logger->log($this->severity['local_sync'], 'Used local roles for {name}: no sync.', [
+        'name' => $account->getDisplayName(),
+      ]);
       return;
     }
 

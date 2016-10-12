@@ -1,10 +1,14 @@
 parameters:
-  uwauth.verbose: false
   uwauth.channel: 'uwauth'
+  uwauth.severity:
+    ad_sync: 'debug'
+    gws_sync: 'debug'
+    local_sync: 'debug'
+  uwauth.verbose: false
 
 services:
   logger.channel.uwauth:
-    parent: logger.channel_base
+    parent: 'logger.channel_base'
     arguments: ['%uwauth.channel%']
 
   uwauth.eventsubscriber:
@@ -17,6 +21,8 @@ services:
       - '@config.factory'
       - '@page_cache_kill_switch'
       - '@current_route_match'
+      - '@logger.channel.uwauth'
+      - '%uwauth.severity%'
     tags:
       - { name: event_subscriber }
 
