@@ -1,15 +1,9 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\uwauth\EventSubscriber\UwAuthSubscriber.
- */
-
 namespace Drupal\uwauth\EventSubscriber;
 
 use Drupal\user\Entity\User;
 use Drupal\Core\Entity\EntityManagerInterface;
-use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Routing\LocalRedirectResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -52,7 +46,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * {@inheritdoc}
    */
   public static function getSubscribedEvents() {
-    $events[KernelEvents::REQUEST][] = array('handle', 29);
+    $events[KernelEvents::REQUEST][] = ['handle', 29];
     return $events;
   }
 
@@ -64,19 +58,19 @@ class UwAuthSubscriber implements EventSubscriberInterface {
       return;
     }
 
-    // Only handle requests if a group source is configured
+    // Only handle requests if a group source is configured.
     $group_source = \Drupal::config('uwauth.settings')->get('group.source');
     if ($group_source === "none") {
       return;
     }
 
-    // Verify we're actually in a Shibboleth session
+    // Verify we're actually in a Shibboleth session.
     $shib_session_id = $this->requestStack->getCurrentRequest()->server->get('Shib-Session-ID');
     if (!isset($shib_session_id)) {
       return;
     }
 
-    // Check for a UW NetID from Shibboleth
+    // Check for a UW NetID from Shibboleth.
     $username = $this->requestStack->getCurrentRequest()->server->get('uwnetid');
     if (!isset($username)) {
       return;
@@ -91,26 +85,26 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    */
   private function login_user() {
     $username = $this->requestStack->getCurrentRequest()->server->get('uwnetid');
-    $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username));
+    $accounts = $this->entityManager->getStorage('user')->loadByProperties(['name' => $username]);
     $account = reset($accounts);
 
-    // Create account if necessary
+    // Create account if necessary.
     if (!$account) {
-      $user = User::create(array(
+      $user = User::create([
         'name' => $username,
-        'mail' => $username.'@uw.edu',
-        'status' => 1
-      ));
-      $user->setPassword(substr(password_hash(openssl_random_pseudo_bytes(8), PASSWORD_DEFAULT),rand(4, 16),32));
+        'mail' => $username . '@uw.edu',
+        'status' => 1,
+      ]);
+      $user->setPassword(substr(password_hash(openssl_random_pseudo_bytes(8), PASSWORD_DEFAULT), rand(4, 16), 32));
       $user->save();
     }
 
-    // Set cookie_lifetime to on browser close
+    // Set cookie_lifetime to on browser close.
     ini_set('session.cookie_lifetime', 0);
 
-    // Sync roles, and reload the modified user object
+    // Sync roles, and reload the modified user object.
     $this->sync_roles($account);
-    $accounts = $this->entityManager->getStorage('user')->loadByProperties(array('name' => $username));
+    $accounts = $this->entityManager->getStorage('user')->loadByProperties(['name' => $username]);
     $account = reset($accounts);
     user_login_finalize($account);
 
@@ -118,10 +112,10 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   }
 
   /**
-  * Redirect user back to the requested page
-  */
+   * Redirect user back to the requested page.
+   */
   private function redirect_user() {
-    // Disable Page Cache to prevent redirect response from being cached
+    // Disable Page Cache to prevent redirect response from being cached.
     \Drupal::service('page_cache_kill_switch')->trigger();
     $current_uri = $this->requestStack->getCurrentRequest()->getRequestUri();
     $redirect = LocalRedirectResponse::create($current_uri);
@@ -129,9 +123,9 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   }
 
   /**
-   * Synchronize roles with UW Groups or Active Directory
+   * Synchronize roles with UW Groups or Active Directory.
    *
-   * @param $account
+   * @param object $account
    *   A user object.
    */
   private function sync_roles($account) {
@@ -139,14 +133,14 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     $roles_assigned = $account->getRoles(TRUE);
     $mapped_roles = $this->map_groups_roles($account);
 
-    // Remove from roles they are no longer assigned to
-    foreach($roles_assigned as $rid_assigned => $role_assigned) {
+    // Remove from roles they are no longer assigned to.
+    foreach ($roles_assigned as $rid_assigned => $role_assigned) {
       if (!in_array($role_assigned, $mapped_roles)) {
         $account->removeRole($role_assigned);
       }
     }
 
-    // Add to newly assigned roles
+    // Add to newly assigned roles.
     foreach ($mapped_roles as $mapped) {
       if (array_key_exists($mapped, $roles_existing)) {
         $account->addRole($mapped);
@@ -157,9 +151,9 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   }
 
   /**
-   * Map UW Groups or AD group membership to roles
+   * Map UW Groups or AD group membership to roles.
    *
-   * @param $account
+   * @param object $account
    *   A user object.
    */
   private function map_groups_roles($account) {
@@ -167,23 +161,25 @@ class UwAuthSubscriber implements EventSubscriberInterface {
       case "gws":
         $group_membership = $this->fetch_gws_groups($account);
         break;
+
       case "ad":
         $group_membership = $this->fetch_ad_groups($account);
         break;
     }
 
-    // Group to Role maps are stored as a multi-line string, containing pipe delimited key-value pairs
-    $group_role_map = array();
+    // Group to Role maps are stored as a multi-line string,
+    // containing pipe delimited key-value pairs.
+    $group_role_map = [];
     foreach (preg_split("/((\r?\n)|(\r\n?))/", \Drupal::config('uwauth.settings')->get('group.map')) as $entry) {
       $pair = explode('|', $entry);
-      $group_role_map[(string)$pair[0]] = (string)$pair[1];
+      $group_role_map[(string) $pair[0]] = (string) $pair[1];
     }
 
-    // Loop through group list, and extract matching roles
-    $mapped_roles = array();
+    // Loop through group list, and extract matching roles.
+    $mapped_roles = [];
     foreach ($group_membership as $group) {
       if (array_key_exists($group, $group_role_map)) {
-        $mapped_roles[] = (string)$group_role_map[$group];
+        $mapped_roles[] = (string) $group_role_map[$group];
       }
     }
 
@@ -191,9 +187,9 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   }
 
   /**
-   * Fetch group membership from UW Groups
+   * Fetch group membership from UW Groups.
    *
-   * @param $account
+   * @param object $account
    *   A user object.
    */
   private function fetch_gws_groups($account) {
@@ -201,37 +197,37 @@ class UwAuthSubscriber implements EventSubscriberInterface {
 
     $uwauth_config = \Drupal::config('uwauth.settings');
 
-    // UW GWS URL
+    // UW GWS URL.
     $uwgws_url = 'https://iam-ws.u.washington.edu/group_sws/v1/search?member=' . $username . '&type=effective&scope=all';
 
-    // Query UW GWS for group membership
+    // Query UW GWS for group membership.
     $uwgws = curl_init();
-    curl_setopt_array($uwgws, array(
-                                CURLOPT_RETURNTRANSFER => TRUE,
-                                CURLOPT_FOLLOWLOCATION => TRUE,
-                                CURLOPT_SSLCERT        => $uwauth_config->get('gws.cert'),
-                                CURLOPT_SSLKEY         => $uwauth_config->get('gws.key'),
-                                CURLOPT_CAINFO         => $uwauth_config->get('gws.cacert'),
-                                CURLOPT_URL            => $uwgws_url,
-                                ));
+    curl_setopt_array($uwgws, [
+      CURLOPT_RETURNTRANSFER => TRUE,
+      CURLOPT_FOLLOWLOCATION => TRUE,
+      CURLOPT_SSLCERT        => $uwauth_config->get('gws.cert'),
+      CURLOPT_SSLKEY         => $uwauth_config->get('gws.key'),
+      CURLOPT_CAINFO         => $uwauth_config->get('gws.cacert'),
+      CURLOPT_URL            => $uwgws_url,
+    ]);
     $uwgws_response = curl_exec($uwgws);
     curl_close($uwgws);
 
-    // Extract groups from response
+    // Extract groups from response.
     $uwgws_feed = simplexml_load_string(str_replace('xmlns=', 'ns=', $uwgws_response));
     $uwgws_entries = $uwgws_feed->xpath("//a[@class='name']");
-    $uwgws_groups = array();
-    foreach($uwgws_entries as $uwgws_entry) {
-      $uwgws_groups[] = (string)$uwgws_entry[0];
+    $uwgws_groups = [];
+    foreach ($uwgws_entries as $uwgws_entry) {
+      $uwgws_groups[] = (string) $uwgws_entry[0];
     }
 
     return $uwgws_groups;
   }
 
   /**
-   * Fetch group membership from Active Directory
+   * Fetch group membership from Active Directory.
    *
-   * @param $account
+   * @param object $account
    *   A user object.
    */
   private function fetch_ad_groups($account) {
@@ -239,25 +235,26 @@ class UwAuthSubscriber implements EventSubscriberInterface {
 
     $uwauth_config = \Drupal::config('uwauth.settings');
 
-    // Search Filter
+    // Search Filter.
     $search_filter = "(sAMAccountName=" . $username . ")";
 
-    // Query Active Directory for user, and fetch group membership
+    // Query Active Directory for user, and fetch group membership.
     $ad_conn = ldap_connect($uwauth_config->get('ad.uri'));
-    if(($uwauth_config->get('ad.binddn') !== NULL) && ($uwauth_config->get('ad.bindpass') !== NULL)) {
+    if (($uwauth_config->get('ad.binddn') !== NULL) && ($uwauth_config->get('ad.bindpass') !== NULL)) {
       ldap_bind($ad_conn, $uwauth_config->get('ad.binddn'), $uwauth_config->get('ad.bindpass'));
     }
-    $ad_search = ldap_search($ad_conn, $uwauth_config->get('ad.basedn'), $search_filter, array('memberOf'));
+    $ad_search = ldap_search($ad_conn, $uwauth_config->get('ad.basedn'), $search_filter, ['memberOf']);
     $ad_search_results = ldap_get_entries($ad_conn, $ad_search);
 
-    // Extract group names from DNs
-    $ad_groups = array();
-    foreach($ad_search_results[0]['memberof'] as $entry) {
-      if(preg_match("/^CN=([a-zA-Z0-9_\- ]+)/", $entry, $matches)) {
-        $ad_groups[] = (string)$matches[1];
+    // Extract group names from DNs.
+    $ad_groups = [];
+    foreach ($ad_search_results[0]['memberof'] as $entry) {
+      if (preg_match("/^CN=([a-zA-Z0-9_\- ]+)/", $entry, $matches)) {
+        $ad_groups[] = (string) $matches[1];
       }
     }
 
     return $ad_groups;
   }
+
 }
