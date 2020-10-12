@@ -1,2 +1,17 @@
 group:
   source: none
+auth:
+  allowed_attributes:
+    - 'cn'
+    - 'employeeType'
+    - 'givenName'
+    - 'sn'
+    - 'uid'
+  excluded_routes:
+    - 'user.login'
+    - 'user.logout'
+  name_id: 'uid'
+  sp_endoint: '/Shibboleth.sso'
+mail:
+  valid_domains:
+    - 'uw.edu'

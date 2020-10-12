@@ -1,6 +1,36 @@
+parameters:
+  uwauth.channel: 'uwauth'
+  uwauth.severity:
+    ad_sync: 'debug'
+    gws_sync: 'debug'
+    local_sync: 'debug'
+  uwauth.verbose: false
+
 services:
+  logger.channel.uwauth:
+    parent: 'logger.channel_base'
+    arguments: ['%uwauth.channel%']
+
   uwauth.eventsubscriber:
     class: Drupal\uwauth\EventSubscriber\UwAuthSubscriber
-    arguments: ['@request_stack', '@entity.manager']
+    arguments:
+      - '@request_stack'
+      - '@entity.manager'
+      - '@uwauth.debug'
+      - '@current_user'
+      - '@config.factory'
+      - '@page_cache_kill_switch'
+      - '@current_route_match'
+      - '@logger.channel.uwauth'
+      - '%uwauth.severity%'
+    tags:
+      - { name: event_subscriber }
+
+  uwauth.debug:
+    class: Drupal\uwauth\Debug
+    arguments: ['%uwauth.verbose%']
+
+  uwauth.logout_override:
+    class: Drupal\uwauth\EventSubscriber\LogoutOverride
     tags:
       - { name: event_subscriber }

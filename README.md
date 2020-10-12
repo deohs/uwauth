@@ -1,23 +1,91 @@
 # UW Auth
 
 This module enables Drupal 8 to authenticate users using Shibboleth, and assign
-their roles based on group membership settings in Active Directory or in
-the UW Groups Web Service.
+their roles based on information in other identity management systems.
+
+It is a fork of the module created by the University of Washington, to be found
+at [https://github.com/jtyocum/uwauth](https://github.com/jtyocum/uwauth), as 
+allowed by its GPL-3.0+ license, as provided in the `LICENSE.txt` file.
+
+The original `README.md file` has been renamed to `README-Original.md`.
+
+
+## Operation
 
 Whenever a Shibboleth session is detected, the user is logged in as that user.
 Or, if the account doesn't exist, it'll be created automatically. There is no
 filtering of what users should be created. User accounts will be given the
-same user id, as their NetID. And, their email will be set to NETID@uw.edu.
+same user name, as their Shibboleth `NameID`.
 
-The module was designed and tested using Apache with mod_shib2. Shibboleth is
-configured to expose the attribute "uwnetid", which will be used as the
-visitors username.
+The module was designed and tested using Apache with `mod_shib_24`. 
 
-In order to enable the module, go to Manage > Extend > UW Auth. Once enabled,
-go to Manage > Configuration > People > UW Auth to configure.
 
-Finally, if no roles are mapped (or the user isn't assigned to any), they will
-be given the role of authenticated user.
+### Assumptions 
+
+Shibboleth is assumed to be configured to expose:
+
+* `name` or `REDIRECT-name` : the Shibboleth `NameID`, typically set in 
+  `/etc/shibboleth/attribute-map.xml`.
+* `mail` or `REDIRECT-mail` : optional ; an e-mail address in string form.
+
+
+As per [https://wiki.shibboleth.net/confluence/display/SHIB2/NativeSPAttributeExtractor](https://wiki.shibboleth.net/confluence/display/SHIB2/NativeSPAttributeExtractor) :
+_The name property corresponds to [...] the Format XML attribute of a SAML <NameID>[...] element._ 
+Such a mapping may look like this depending on your Shibboleth configuration:
+
+    <Attribute id="name"
+      name="urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified" />
+    
+    
+### Account creation and usage
+
+* new accounts are created on the fly
+  * if the `mail` value matches one of the allowed domains, that value is used 
+    for the user account `mail` and `init` base fields
+  * if that value exists, but does not belong to one of the allowed domains, the
+    value is used, _and_ the account is marked as blocked
+  * if the `mail` value is empty or missing, a pseudo-random address is 
+    generated _and_ the account is marked as blocked
+* for existing accounts:
+  * if the `mail` value matches, the account is used as such
+  * if the `mail` value does not match, the new value is used to update the
+    user account, and the change is logged for reference. The `init` field is
+    not updated.
+* in all cases, if the user did not have an active Drupal session, the `login` 
+  timestamp field on the user is updated.
+  
+
+## Installation
+
+In addition to enabling the module, you need to modify the `.htaccess` at the
+document root, or its equivalent in your vhost definition, to avoid having URLs
+needed by the Shibboleth SP being rewritten.
+
+Before:
+
+    # Pass all requests not referring directly to files in the filesystem to
+    # index.php.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !=/favicon.ico
+    RewriteRule ^ index.php [L]
+
+After:
+
+    # Pass all requests not referring directly to files in the filesystem to
+    # index.php.
+    RewriteCond %{REQUEST_URI} !^/Shibboleth.sso
+    RewriteCond %{REQUEST_URI} !^/secure
+    RewriteCond %{REQUEST_URI} !^/shibboleth-sp
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !=/favicon.ico
+    RewriteRule ^ index.php [L]
+
+Depending on the specifics of your SP configuration, you may want to tune these
+rules. The `/Shibboleth.sso` Shibboleth SP endpoint is configurable in the 
+module settings form at `/admin/config/people/uwauth`.
+
 
 ## Recommended Version
 
@@ -25,8 +93,10 @@ For stable operation, please download or pull a specific tag (release).
 Otherwise you are likely to download the latest development code, which may
 or may not work right.
 
+
 ## Federation
 
-There is no support for federated logins. The module assumes all
-users are using UW NetID's. This functionality may change in the future, if the
-need arises for it.
+There is no support for federated logins. The module assumes all users are using 
+centralized identifiers from the group's Shibboleth IdP. 
+
+This functionality may change in the future, if the need arises for it.
