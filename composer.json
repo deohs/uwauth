@@ -1,0 +1,24 @@
+{
+    "name": "drupal/uwauth",
+    "description": "Provides authentication and role assignment with Shibboleth, and UW Groups or Active Directory.",
+    "type": "drupal-module",
+    "homepage": "https://github.com/deohs/uwauth",
+    "authors": [
+        {
+            "name": "John Yocum (jtyocum)",
+            "role": "Creator"
+        },
+        {
+            "name": "Thomas Kiehne (tkiehne)",
+            "email": "tkiehne@uw.edu",
+            "homepage": "https://www.drupal.org/u/tkiehne",
+            "role": "Maintainer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/deohs/uwauth/issues",
+        "source": "https://github.com/deohs/uwauth"
+    },
+    "license": "GPL-3.0-or-later",
+    "minimum-stability": "dev"
+}

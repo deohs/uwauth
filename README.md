@@ -51,6 +51,23 @@ Such a mapping may look like this depending on your Shibboleth configuration:
 
 ## Installation
 
+To install via Composer, add a repository to your composer.json then install as usual via Composer:
+
+````
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/deohs/uwauth"
+        }
+    ],
+    "require": {
+        "drupal/uwauth": "~2.2"
+    }
+}
+````
+
+
 In addition to enabling the module, you need to modify the `.htaccess` at the
 document root, or its equivalent in your vhost definition, to avoid having URLs
 needed by the Shibboleth SP being rewritten.
