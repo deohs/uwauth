@@ -27,7 +27,7 @@ function uwauth_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<p>' . t('For portability purposes, externally managed groups are mapped to Drupal roles. This mapping function allows for changes in group names, and sources without having to change permissions within Drupal.') . '</p>';
       $output .= '<p>' . t('Each row within the text box represents a group to role map entry. A group can only be mapped to a single role, as the group name is used as an internal identifier. Groups cannot be mapped to builtin Drupal roles. So, if you want to give a group, admin privileges, you will need to create a role with those privileges.') . '</p>';
       $output .= '<h3>' . t('History') . '</h3>';
-      $output .= '<p>' . t('Developed by John Yocum for UW DEOHS. Source code history, releases, etc. available from ') . '<a href=https://github.com/jtyocum/drupal8-uwauth>https://github.com/jtyocum/drupal8-uwauth</a>.' . '</p>';
+      $output .= '<p>' . t('Developed by John Yocum for UW DEOHS. Source code history, releases, etc. available from') . ' ' . '<a href=https://github.com/jtyocum/drupal8-uwauth>https://github.com/jtyocum/drupal8-uwauth</a>.' . '</p>';
       return $output;
   }
 }

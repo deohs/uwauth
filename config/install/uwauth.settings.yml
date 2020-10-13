@@ -11,7 +11,7 @@ auth:
     - 'user.login'
     - 'user.logout'
   name_id: 'uid'
-  sp_endoint: '/Shibboleth.sso'
+  sp_endpoint: '/Shibboleth.sso'
 mail:
   valid_domains:
     - 'uw.edu'

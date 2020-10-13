@@ -3,12 +3,6 @@
 This module enables Drupal 8 to authenticate users using Shibboleth, and assign
 their roles based on information in other identity management systems.
 
-It is a fork of the module created by the University of Washington, to be found
-at [https://github.com/jtyocum/uwauth](https://github.com/jtyocum/uwauth), as 
-allowed by its GPL-3.0+ license, as provided in the `LICENSE.txt` file.
-
-The original `README.md file` has been renamed to `README-Original.md`.
-
 
 ## Operation
 

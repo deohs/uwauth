@@ -9,6 +9,11 @@ use Drupal\Component\Utility\Unicode;
  */
 class Debug {
 
+  /**
+   * Debug flag.
+   *
+   * @var bool
+   */
   protected $verbose;
 
   /**

@@ -87,7 +87,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   /**
    * A hash of severity level by group sync method.
    *
-   * @var array<string,string>
+   * @var arraystringstring
    */
   protected $severity;
 
@@ -110,7 +110,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    *   The current_route_match service.
    * @param \Psr\Log\LoggerInterface $logger
    *   The logger.channel.uwauth logger channel.
-   * @param array<string,string> $severity
+   * @param arraystringstring $severity
    *   The severity levels to use for each role sync method.
    */
   public function __construct(
@@ -213,7 +213,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * @param \Drupal\Core\Session\AccountInterface $account
    *   A user object.
    *
-   * @return array<string>
+   * @return arraystring
    *   An array of group names.
    */
   private function fetchGwsGroups(AccountInterface $account) {
@@ -239,7 +239,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     // Extract groups from response.
     $uwgws_feed = simplexml_load_string(str_replace('xmlns=', 'ns=', $uwgws_response));
     $uwgws_entries = $uwgws_feed->xpath("//a[@class='name']");
-    $uwgws_groups = array();
+    $uwgws_groups = [];
     foreach ($uwgws_entries as $uwgws_entry) {
       $uwgws_groups[] = (string) $uwgws_entry[0];
     }
@@ -290,7 +290,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * {@inheritdoc}
    */
   public static function getSubscribedEvents() {
-    $events[KernelEvents::REQUEST][] = array('handle', 29);
+    $events[KernelEvents::REQUEST][] = ['handle', 29];
     return $events;
   }
 
@@ -416,7 +416,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * @param \Drupal\Core\Session\AccountInterface $account
    *   A user object.
    *
-   * @return array<string>
+   * @return arraystring
    *   An array of role names.
    */
   private function mapGroupsRoles(AccountInterface $account) {
@@ -441,14 +441,14 @@ class UwAuthSubscriber implements EventSubscriberInterface {
 
     // Group to Role maps are stored as a multi-line string, containing pipe-
     // delimited key-value pairs.
-    $group_role_map = array();
+    $group_role_map = [];
     foreach (preg_split("/((\r?\n)|(\r\n?))/", $this->settings->get('group.map')) as $entry) {
       $pair = explode('|', $entry);
       $group_role_map[(string) $pair[0]] = (string) $pair[1];
     }
 
     // Loop through group list, and extract matching roles.
-    $mapped_roles = array();
+    $mapped_roles = [];
     foreach ($group_membership as $group) {
       if (array_key_exists($group, $group_role_map)) {
         $mapped_roles[] = (string) $group_role_map[$group];
