@@ -27,7 +27,7 @@ uwauth.settings:
           label: 'Attribute or variable mapped to the Shibboleth NameID'
           nullable: false
           translatable: false
-        sp_endoint:
+        sp_endpoint:
           type: 'string'
           label: 'Path used by the Shibboleth SP endpoint'
           nullable: false

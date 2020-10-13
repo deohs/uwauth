@@ -3,12 +3,6 @@
 This module enables Drupal 8 to authenticate users using Shibboleth, and assign
 their roles based on information in other identity management systems.
 
-It is a fork of the module created by the University of Washington, to be found
-at [https://github.com/jtyocum/uwauth](https://github.com/jtyocum/uwauth), as 
-allowed by its GPL-3.0+ license, as provided in the `LICENSE.txt` file.
-
-The original `README.md file` has been renamed to `README-Original.md`.
-
 
 ## Operation
 
@@ -56,6 +50,23 @@ Such a mapping may look like this depending on your Shibboleth configuration:
   
 
 ## Installation
+
+To install via Composer, add a repository to your composer.json then install as usual via Composer:
+
+````
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/deohs/uwauth"
+        }
+    ],
+    "require": {
+        "drupal/uwauth": "~2.2"
+    }
+}
+````
+
 
 In addition to enabling the module, you need to modify the `.htaccess` at the
 document root, or its equivalent in your vhost definition, to avoid having URLs

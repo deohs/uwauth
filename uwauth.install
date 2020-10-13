@@ -1,0 +1,32 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the uwauth module.
+ */
+
+/**
+ * Update 2.1 schema to 2.2 schema with UW defaults.
+ */
+function uwauth_update_8001() {
+  $config_factory = \Drupal::configFactory();
+  $config = $config_factory->getEditable('uwauth.settings');
+  $config->set('mail', ['valid_domains' => ['uw.edu']]);
+  $config->set('auth', [
+    'allowed_attributes' => [
+      'cn',
+      'employeeType',
+      'givenName',
+      'sn',
+      'uid',
+      'uwnetid',
+    ],
+    'excluded_routes' => [
+      'user.login',
+      'user.logout',
+    ],
+    'name_id' => 'uwnetid',
+    'sp_endpoint' => '/Shibboleth.sso',
+  ]);
+  $config->save();
+}
