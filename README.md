@@ -62,7 +62,7 @@ To install via Composer, add a repository to your composer.json then install as 
         }
     ],
     "require": {
-        "drupal/uwauth": "~2.2"
+        "drupal/uwauth": "~3.0"
     }
 }
 ````
