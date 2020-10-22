@@ -104,6 +104,11 @@ For stable operation, please download or pull a specific tag (release).
 Otherwise you are likely to download the latest development code, which may
 or may not work right.
 
+For Drupal core versions 8.0.x < 8.8.3 use version v2.2.0 (8.x-2.2).
+
+For Drupal core versions >= 8.8.3, including Drupal 9, use v.3.0.0 or later.
+
+
 
 ## Federation
 
