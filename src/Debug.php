@@ -47,7 +47,7 @@ class Debug {
       $shortClassArray = [];
       $len = count($classArray);
       for ($i = 0; $i < $len - 1; $i++) {
-        $shortClassArray[$i] = Unicode::substr($classArray[$i], 0, 1);
+        $shortClassArray[$i] = mb_substr($classArray[$i], 0, 1);
       }
       $shortClassArray[$len - 1] = $classArray[$len - 1];
       $shortClass = implode('\\', $shortClassArray);
