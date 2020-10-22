@@ -2,7 +2,6 @@
 
 namespace Drupal\uwauth\EventSubscriber;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\PageCache\ResponsePolicy\KillSwitch;
 use Drupal\Core\Routing\CurrentRouteMatch;
