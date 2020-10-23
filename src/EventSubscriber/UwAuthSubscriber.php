@@ -1,8 +1,9 @@
 <?php
 
+declare(strict_types = 1);
+
 namespace Drupal\uwauth\EventSubscriber;
 
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\PageCache\ResponsePolicy\KillSwitch;
 use Drupal\Core\Routing\CurrentRouteMatch;
@@ -151,7 +152,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    */
   protected function createUser($username, AttributeBagInterface $attributes) {
     $mail = $attributes->get('mail') ?: $username . '@uw.edu';
-    $domain = Unicode::substr(strrchr($mail, "@"), 1);
+    $domain = mb_substr(strrchr($mail, "@"), 1);
     $validDomains = $this->settings->get('mail.valid_domains');
     // Ensure an invalid, non-reservable domain, to ensure mails are not being
     // sent to an unknown server; as per RFC 2606 section 2.
@@ -164,7 +165,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
       'name' => $username,
       'status' => 1,
     ]);
-    $account->setPassword(Unicode::substr(password_hash(openssl_random_pseudo_bytes(8), PASSWORD_DEFAULT), rand(4, 16), 32));
+    $account->setPassword(mb_substr(password_hash(openssl_random_pseudo_bytes(8), PASSWORD_DEFAULT), rand(4, 16), 32));
     $account->save();
     return $account;
   }

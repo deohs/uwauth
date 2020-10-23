@@ -28,7 +28,9 @@ services:
 
   uwauth.debug:
     class: Drupal\uwauth\Debug
-    arguments: ['%uwauth.verbose%']
+    arguments:
+      - '@messenger'
+      - '%uwauth.verbose%'
 
   uwauth.logout_override:
     class: Drupal\uwauth\EventSubscriber\LogoutOverride
