@@ -2,7 +2,7 @@
 
 namespace Drupal\uwauth;
 
-use Drupal\Component\Utility\Unicode;
+use Drupal\Core\Messenger\MessengerInterface;
 
 /**
  * Class Debug provides configurable debug information.
@@ -17,12 +17,22 @@ class Debug {
   protected $verbose;
 
   /**
+   * The Messenger service.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
    * Debug constructor.
    *
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger service.
    * @param bool $verbose
-   *   Display debug information ?
+   *   Display debug information?
    */
-  public function __construct($verbose = FALSE) {
+  public function __construct(MessengerInterface $messenger, $verbose = FALSE) {
+    $this->messenger = $messenger;
     $this->verbose = $verbose;
   }
 
@@ -34,7 +44,7 @@ class Debug {
    * @param string $level
    *   The message severity level.
    */
-  public function message($message, $level = 'status') {
+  public function message($message, $level = MessengerInterface::TYPE_STATUS) {
     if (!$this->verbose) {
       return;
     }
@@ -47,7 +57,7 @@ class Debug {
       $shortClassArray = [];
       $len = count($classArray);
       for ($i = 0; $i < $len - 1; $i++) {
-        $shortClassArray[$i] = Unicode::substr($classArray[$i], 0, 1);
+        $shortClassArray[$i] = mb_substr($classArray[$i], 0, 1);
       }
       $shortClassArray[$len - 1] = $classArray[$len - 1];
       $shortClass = implode('\\', $shortClassArray);
@@ -58,7 +68,7 @@ class Debug {
 
     $message = ($shortClass ? "$shortClass::$function" : $function) . " $message";
 
-    drupal_set_message($message, $level);
+    $this->messenger->addMessage($message, $level);
   }
 
 }
