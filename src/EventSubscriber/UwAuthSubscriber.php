@@ -399,7 +399,9 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     }
 
     // Set cookie_lifetime to on browser close.
-    ini_set('session.cookie_lifetime', 0);
+    if (is_null(ini_get('session.cookie_lifetime'))) {
+      ini_set('session.cookie_lifetime', 0);
+    }
 
     $this->syncRoles($account);
 
