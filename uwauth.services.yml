@@ -15,7 +15,7 @@ services:
     class: Drupal\uwauth\EventSubscriber\UwAuthSubscriber
     arguments:
       - '@request_stack'
-      - '@entity.manager'
+      - '@entity_type.manager'
       - '@uwauth.debug'
       - '@current_user'
       - '@config.factory'
