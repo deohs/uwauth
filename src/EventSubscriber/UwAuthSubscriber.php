@@ -19,7 +19,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBag;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
 
 /**
  * UW Auth event subscriber.
@@ -313,7 +313,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   /**
    * {@inheritdoc}
    */
-  public function handle(GetResponseEvent $event) {
+  public function handle(RequestEvent $event) {
     $this->debug->message($this->t('User id: @id', ['@id' => $this->currentUser->id()]));
     if ($this->isLoggedIn()
       || $this->isRouteExcluded()
