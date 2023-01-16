@@ -14,14 +14,14 @@ class Debug {
    *
    * @var bool
    */
-  protected $verbose;
+  protected bool $verbose;
 
   /**
    * The Messenger service.
    *
    * @var \Drupal\Core\Messenger\MessengerInterface
    */
-  protected $messenger;
+  protected MessengerInterface $messenger;
 
   /**
    * Debug constructor.
@@ -31,7 +31,7 @@ class Debug {
    * @param bool $verbose
    *   Display debug information?
    */
-  public function __construct(MessengerInterface $messenger, $verbose = FALSE) {
+  public function __construct(MessengerInterface $messenger, bool $verbose = FALSE) {
     $this->messenger = $messenger;
     $this->verbose = $verbose;
   }
@@ -44,7 +44,7 @@ class Debug {
    * @param string $level
    *   The message severity level.
    */
-  public function message($message, $level = MessengerInterface::TYPE_STATUS) {
+  public function message(string $message, string $level = MessengerInterface::TYPE_STATUS): void {
     if (!$this->verbose) {
       return;
     }
