@@ -298,6 +298,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     return reset($accounts);
   }
 
+
   public function handle(RequestEvent $event): void {
     $this->debug->message($this->t('User id: @id', ['@id' => $this->currentUser->id()]));
     if ($this->isLoggedIn()
