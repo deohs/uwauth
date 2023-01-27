@@ -13,7 +13,7 @@ class UwAuthLogoutController extends ControllerBase {
   /**
    * Log user out of Drupal, and redirect to web login.
    */
-  public function logout() {
+  public function logout(): TrustedRedirectResponse {
     user_logout();
     return new TrustedRedirectResponse('https://weblogin.washington.edu/');
   }

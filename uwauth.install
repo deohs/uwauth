@@ -8,7 +8,7 @@
 /**
  * Update 2.1 schema to 2.2 schema with UW defaults.
  */
-function uwauth_update_8001() {
+function uwauth_update_8001(): void {
   $config_factory = \Drupal::configFactory();
   $config = $config_factory->getEditable('uwauth.settings');
   $config->set('mail', ['valid_domains' => ['uw.edu']]);

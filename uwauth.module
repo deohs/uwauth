@@ -13,8 +13,7 @@ use Drupal\Core\Routing\RouteMatchInterface;
 function uwauth_help($route_name, RouteMatchInterface $route_match) {
   switch ($route_name) {
     case 'help.page.uwauth':
-      $output = '';
-      $output .= '<h3>' . t('About') . '</h3>';
+      $output = '<h3>' . t('About') . '</h3>';
       $output .= '<p>' . t('UW Auth implements user authentication and automatic role assigment. Authentication is provided by Shibboleth, with role assignment utilizing UW Groups or Active Directory.') . '</p>';
       $output .= '<h3>' . t('General Settings') . '</h3>';
       $output .= '<p>' . t('From here you can specify what your group membership source is. By default, this will be set to None, which effectively disables the module. To minimize issues, select your group membership source after you have created your roles, mapped them, and configured the group source.') . '</p>';

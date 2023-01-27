@@ -13,7 +13,7 @@ class LogoutOverride extends RouteSubscriberBase {
   /**
    * {@inheritdoc}
    */
-  public function alterRoutes(RouteCollection $collection) {
+  public function alterRoutes(RouteCollection $collection): void {
     if (!$route = $collection->get('user.logout')) {
       return;
     }

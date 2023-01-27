@@ -19,6 +19,9 @@
         "issues": "https://github.com/deohs/uwauth/issues",
         "source": "https://github.com/deohs/uwauth"
     },
+    "require": {
+        "php": ">=8.1"
+    },
     "license": "GPL-3.0-or-later",
     "minimum-stability": "dev"
 }
