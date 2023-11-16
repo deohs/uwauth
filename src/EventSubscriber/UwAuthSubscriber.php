@@ -487,8 +487,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     // Disable Page Cache to prevent redirect response from being cached.
     $this->killSwitch->trigger();
     $current_uri = $this->requestStack->getCurrentRequest()->getRequestUri();
-    $redirect = LocalRedirectResponse::create($current_uri);
-    return $redirect;
+    return new LocalRedirectResponse($current_uri);
   }
 
   /**
