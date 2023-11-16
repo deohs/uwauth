@@ -3,6 +3,7 @@
 namespace Drupal\uwauth\EventSubscriber;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\PageCache\ResponsePolicy\KillSwitch;
 use Drupal\Core\Routing\CurrentRouteMatch;
 use Drupal\Core\Session\AccountInterface;
@@ -19,7 +20,8 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBag;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * UW Auth event subscriber.
@@ -29,66 +31,48 @@ class UwAuthSubscriber implements EventSubscriberInterface {
 
   /**
    * The current_user service.
-   *
-   * @var \Drupal\Core\Session\AccountProxyInterface
    */
-  protected $currentUser;
+  protected AccountProxyInterface $currentUser;
 
   /**
    * A diagnostic display service.
-   *
-   * @var \Drupal\uwauth\Debug
    */
-  protected $debug;
+  protected Debug $debug;
 
   /**
    * The entity manager.
-   *
-   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityTypeManager;
+  protected EntityTypeManagerInterface $entityTypeManager;
 
   /**
    * The page_cache_kill_switch service.
-   *
-   * @var \Drupal\Core\PageCache\ResponsePolicy\KillSwitch
    */
-  protected $killSwitch;
+  protected KillSwitch $killSwitch;
 
   /**
    * The logger.channel.uwauth service.
-   *
-   * @var \Psr\Log\LoggerInterface
    */
-  protected $logger;
+  protected LoggerInterface $logger;
 
   /**
    * The request.
-   *
-   * @var \Symfony\Component\HttpFoundation\RequestStack
    */
-  protected $requestStack;
+  protected RequestStack $requestStack;
 
   /**
    * The current_route_match service.
-   *
-   * @var \Drupal\Core\Routing\CurrentRouteMatch
    */
-  protected $route;
+  protected CurrentRouteMatch $route;
 
   /**
    * The module settings.
-   *
-   * @var array|mixed|null
    */
-  protected $settings;
+  protected ImmutableConfig $settings;
 
   /**
    * A hash of severity level by group sync method.
-   *
-   * @var arraystringstring
    */
-  protected $severity;
+  protected array $severity;
 
   /**
    * Constructs a UW Auth event subscriber.
@@ -102,14 +86,14 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * @param \Drupal\Core\Session\AccountProxyInterface $currentUser
    *   The current user.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config
-   *   The config.factory service.
+   *   The config factory service.
    * @param \Drupal\Core\PageCache\ResponsePolicy\KillSwitch $killSwitch
    *   The page_cache_kill_switch service.
    * @param \Drupal\Core\Routing\CurrentRouteMatch $route
    *   The current_route_match service.
    * @param \Psr\Log\LoggerInterface $logger
    *   The logger.channel.uwauth logger channel.
-   * @param arraystringstring $severity
+   * @param array $severity
    *   The severity levels to use for each role sync method.
    */
   public function __construct(
@@ -121,7 +105,8 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     KillSwitch $killSwitch,
     CurrentRouteMatch $route,
     LoggerInterface $logger,
-    array $severity) {
+    array $severity,
+  ) {
     $this->currentUser = $currentUser;
     $this->debug = $debug;
     $this->entityTypeManager = $entity_manager;
@@ -144,17 +129,18 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * @return \Drupal\user\Entity\User
    *   The new or existing user account.
    *
-   * @TODO add support for more attributes.
+   * @throws \Drupal\Core\Entity\EntityStorageException
    *
    * @see https://tools.ietf.org/html/rfc2606#section-2
+   * @todo Add support for more attributes.
    */
-  protected function createUser($username, AttributeBagInterface $attributes) {
+  protected function createUser(string $username, AttributeBagInterface $attributes): User {
     $mail = $attributes->get('mail') ?: $username . '@uw.edu';
     $domain = mb_substr(strrchr($mail, "@"), 1);
     $validDomains = $this->settings->get('mail.valid_domains');
     // Ensure an invalid, non-reservable domain, to ensure mails are not being
     // sent to an unknown server; as per RFC 2606 section 2.
-    if (!in_array($domain, $validDomains)) {
+    if (!\in_array($domain, $validDomains)) {
       $mail = "$username@uwauth.invalid";
     }
     $account = User::create([
@@ -163,7 +149,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
       'name' => $username,
       'status' => 1,
     ]);
-    $account->setPassword(mb_substr(password_hash(openssl_random_pseudo_bytes(8), PASSWORD_DEFAULT), rand(4, 16), 32));
+    $account->setPassword(mb_substr(password_hash(openssl_random_pseudo_bytes(8), PASSWORD_DEFAULT), random_int(4, 16), 32));
     $account->save();
     return $account;
   }
@@ -177,7 +163,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * @return array
    *   An array of group names.
    */
-  private function fetchAdGroups(AccountInterface $account) {
+  private function fetchAdGroups(AccountInterface $account): array {
     $username = $account->getAccountName();
 
     // Search Filter.
@@ -212,10 +198,10 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * @param \Drupal\Core\Session\AccountInterface $account
    *   A user object.
    *
-   * @return arraystring
+   * @return array
    *   An array of group names.
    */
-  private function fetchGwsGroups(AccountInterface $account) {
+  private function fetchGwsGroups(AccountInterface $account): array {
 
     $username = $account->getAccountName();
 
@@ -257,7 +243,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * @return \Symfony\Component\HttpFoundation\Session\Attribute\AttributeBag
    *   The "attributes".
    */
-  protected function getFilteredAttributes() {
+  protected function getFilteredAttributes(): AttributeBag {
     // Check for a UW NetID from Shibboleth.
     $attributes = new AttributeBag();
     $allowedAttributes = array_flip($this->settings->get('auth.allowed_attributes'));
@@ -288,7 +274,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   /**
    * {@inheritdoc}
    */
-  public static function getSubscribedEvents() {
+  public static function getSubscribedEvents(): array {
     $events[KernelEvents::REQUEST][] = ['handle', 29];
     return $events;
   }
@@ -297,23 +283,23 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * Get an account User entity by username.
    *
    * @param string $username
-   *   The user name for which to load a User entity.
+   *   The username for which to load a User entity.
    *
    * @return \Drupal\user\Entity\User|false
    *   The loaded User entity, or FALSE if none matched the user name.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
-  protected function getUserByName($username) {
+  protected function getUserByName(string $username): User|false {
     $accounts = $this->entityTypeManager
       ->getStorage('user')
       ->loadByProperties(['name' => $username]);
-    $account = reset($accounts);
-    return $account;
+    return reset($accounts);
   }
 
-  /**
-   * {@inheritdoc}
-   */
-  public function handle(GetResponseEvent $event) {
+
+  public function handle(RequestEvent $event): void {
     $this->debug->message($this->t('User id: @id', ['@id' => $this->currentUser->id()]));
     if ($this->isLoggedIn()
       || $this->isRouteExcluded()
@@ -334,11 +320,8 @@ class UwAuthSubscriber implements EventSubscriberInterface {
 
   /**
    * Check whether the current request describes a Shibboleth session.
-   *
-   * @return bool
-   *   Does it ?
    */
-  protected function hasShibbolethSession() {
+  protected function hasShibbolethSession(): bool {
     // Verify we're actually in a Shibboleth session.
     $server = $this->requestStack
       ->getCurrentRequest()
@@ -358,11 +341,8 @@ class UwAuthSubscriber implements EventSubscriberInterface {
 
   /**
    * Is the current user logged-in on Drupal ?
-   *
-   * @return bool
-   *   Is the user logged-in ?
    */
-  protected function isLoggedIn() {
+  protected function isLoggedIn(): bool {
     if ($this->currentUser->isAuthenticated()) {
       $this->debug->message($this->t('Already authenticated'));
       return TRUE;
@@ -373,15 +353,11 @@ class UwAuthSubscriber implements EventSubscriberInterface {
 
   /**
    * Is the current route excluded from using SSO ?
-   *
-   * @return bool
-   *   Is it ?
    */
-  protected function isRouteExcluded() {
+  protected function isRouteExcluded(): bool {
     $routeName = $this->route->getCurrentRouteMatch()->getRouteName();
     $excludedRoutes = $this->settings->get('auth.excluded_routes');
-    $ret = in_array($routeName, $excludedRoutes);
-    return $ret;
+    return \in_array($routeName, $excludedRoutes);
   }
 
   /**
@@ -391,15 +367,19 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    *   The Shibboleth NameID, to use for the Drupal username.
    * @param \Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface $attributes
    *   The filtered attributes passed by the SP.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   * @throws \Drupal\Core\Entity\EntityStorageException
    */
-  private function loginUser($username, AttributeBagInterface $attributes) {
+  private function loginUser(string $username, AttributeBagInterface $attributes): void {
     $account = $this->getUserByName($username);
     if (!$account) {
       $account = $this->createUser($username, $attributes);
     }
 
     // Set cookie_lifetime to on browser close.
-    if (is_null(ini_get('session.cookie_lifetime'))) {
+    if (\is_null(ini_get('session.cookie_lifetime'))) {
       ini_set('session.cookie_lifetime', 0);
     }
 
@@ -417,28 +397,16 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * @param \Drupal\Core\Session\AccountInterface $account
    *   A user object.
    *
-   * @return arraystring
+   * @return array
    *   An array of role names.
    */
-  private function mapGroupsRoles(AccountInterface $account) {
-    switch ($this->settings->get('group.source')) {
-      case UwAuthSettingsForm::SYNC_GROUPS:
-        $group_membership = $this->fetchGwsGroups($account);
-        break;
-
-      case UwAuthSettingsForm::SYNC_AD:
-        $group_membership = $this->fetchAdGroups($account);
-        break;
-
-      case UwAuthSettingsForm::SYNC_LOCAL:
-        $group_membership = $account->getRoles();
-        break;
-
-      case UwAuthSettingsForm::SYNC_NONE:
-      default:
-        $group_membership = [];
-        break;
-    }
+  private function mapGroupsRoles(AccountInterface $account): array {
+    $group_membership = match ($this->settings->get('group.source')) {
+      UwAuthSettingsForm::SYNC_GROUPS => $this->fetchGwsGroups($account),
+      UwAuthSettingsForm::SYNC_AD => $this->fetchAdGroups($account),
+      UwAuthSettingsForm::SYNC_LOCAL => $account->getRoles(),
+      default => [],
+    };
 
     // Group to Role maps are stored as a multi-line string, containing pipe-
     // delimited key-value pairs.
@@ -451,7 +419,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     // Loop through group list, and extract matching roles.
     $mapped_roles = [];
     foreach ($group_membership as $group) {
-      if (array_key_exists($group, $group_role_map)) {
+      if (\array_key_exists($group, $group_role_map)) {
         $mapped_roles[] = (string) $group_role_map[$group];
       }
     }
@@ -471,19 +439,16 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * @return bool
    *   Needed ?
    */
-  protected function needsLogin() {
+  protected function needsLogin(): bool {
     $group_source = $this->settings->get('group.source');
     $this->debug->message($this->t("Group source '@source'.", ['@source' => $group_source]));
-    if ($group_source === UwAuthSettingsForm::SYNC_NONE) {
-      return FALSE;
-    }
-    return TRUE;
+    return $group_source !== UwAuthSettingsForm::SYNC_NONE;
   }
 
   /**
    * Redirect user back to the requested page.
    */
-  private function redirectUser() {
+  private function redirectUser(): RedirectResponse {
     // Disable Page Cache to prevent redirect response from being cached.
     $this->killSwitch->trigger();
     $current_uri = $this->requestStack->getCurrentRequest()->getRequestUri();
@@ -496,7 +461,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    * @param \Drupal\Core\Session\AccountInterface $account
    *   A user object.
    */
-  private function syncRoles(AccountInterface $account) {
+  private function syncRoles(AccountInterface $account): void {
     // Local groups do not need to be resynchronized.
     if ($this->settings->get('group.source') == UwAuthSettingsForm::SYNC_LOCAL) {
       $this->logger->log($this->severity['local_sync'], 'Used local roles for {name}: no sync.', [
@@ -511,14 +476,14 @@ class UwAuthSubscriber implements EventSubscriberInterface {
 
     // Remove from roles they are no longer assigned to.
     foreach ($roles_assigned as $role_assigned) {
-      if (!in_array($role_assigned, $mapped_roles)) {
+      if (!\in_array($role_assigned, $mapped_roles)) {
         $account->removeRole($role_assigned);
       }
     }
 
     // Add to newly assigned roles.
     foreach ($mapped_roles as $mapped) {
-      if (array_key_exists($mapped, $roles_existing)) {
+      if (\array_key_exists($mapped, $roles_existing)) {
         $account->addRole($mapped);
       }
     }

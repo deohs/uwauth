@@ -14,7 +14,7 @@ class LogoutController extends ControllerBase {
   /**
    * The overridden controller for user.logout.
    *
-   * Do not set the refrehs delay to 0 to avoid having an immediate redirect
+   * Do not set the refresh delay to 0 to avoid having an immediate redirect
    * without page display.
    *
    * @see https://www.w3.org/TR/WCAG20-TECHS/H76.html
@@ -22,7 +22,7 @@ class LogoutController extends ControllerBase {
    * @return array
    *   A render array.
    */
-  public function logout() {
+  public function logout(): array {
     $title = $this->t('Logout');
     $frontUrl = Url::fromRoute('<front>', [], ['absolute' => TRUE]);
     $frontString = $frontUrl->toString();

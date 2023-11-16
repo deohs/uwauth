@@ -8,38 +8,39 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Config\Config;
 
 /**
  * Configure UwAuth settings for this site.
  */
 class UwAuthSettingsForm extends ConfigFormBase {
-  const SETTINGS_NAME = 'uwauth.settings';
-  const DEFAULT_SP_ENDPOINT = '/Shibboleth.sso';
-  const SYNC_AD = 'ad';
-  const SYNC_GROUPS = 'gws';
-  const SYNC_LOCAL = 'local';
-  const SYNC_NONE = 'none';
+  public const SETTINGS_NAME = 'uwauth.settings';
+  public const DEFAULT_SP_ENDPOINT = '/Shibboleth.sso';
+  public const SYNC_AD = 'ad';
+  public const SYNC_GROUPS = 'gws';
+  public const SYNC_LOCAL = 'local';
+  public const SYNC_NONE = 'none';
 
   /**
    * The current_user service.
    *
    * @var \Drupal\Core\Session\AccountProxyInterface
    */
-  protected $account;
+  protected AccountProxyInterface $account;
 
   /**
    * The logger_channel.uwauth service.
    *
    * @var \Psr\Log\LoggerInterface
    */
-  protected $logger;
+  protected LoggerInterface $logger;
 
   /**
    * The module settings.
    *
    * @var \Drupal\Core\Config\Config
    */
-  protected $settings;
+  protected Config $settings;
 
   /**
    * {@inheritdoc}
@@ -54,7 +55,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container) {
+  public static function create(ContainerInterface $container): self {
     return new static(
       $container->get('config.factory'),
       $container->get('logger.channel.uwauth'),
@@ -65,14 +66,14 @@ class UwAuthSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function getFormId() {
+  public function getFormId(): string {
     return 'uwauth_settings';
   }
 
   /**
    * {@inheritdoc}
    */
-  protected function getEditableConfigNames() {
+  protected function getEditableConfigNames(): array {
     return [
       static::SETTINGS_NAME,
     ];
@@ -81,7 +82,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function buildForm(array $form, FormStateInterface $form_state) {
+  public function buildForm(array $form, FormStateInterface $form_state): array {
     $this->logger->info('User @name accessed the SSO configuration form', [
       '@name' => $this->account->getDisplayName(),
     ]);
@@ -102,7 +103,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
    * @return array
    *   The modified form array.
    */
-  protected function buildMailSettings(array $form, FormStateInterface $form_state) {
+  protected function buildMailSettings(array $form, FormStateInterface $form_state): array {
     $validDomains = $this->settings->get('mail.valid_domains');
     $validDomains = implode("\n", $validDomains);
     $form['uwauth_general']['valid_domains'] = [
@@ -125,7 +126,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
    * @return array
    *   The modified form array.
    */
-  protected function buildLocalSettings(array $form, FormStateInterface $form_state) {
+  protected function buildLocalSettings(array $form, FormStateInterface $form_state): array {
     $groupSource = $this->settings->get('group.source');
     $form['uwauth_local'] = [
       '#type' => 'details',
@@ -156,7 +157,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
    * @return array
    *   The modified form array.
    */
-  protected function buildUwSettings(array $form, FormStateInterface $form_state) {
+  protected function buildUwSettings(array $form, FormStateInterface $form_state): array {
     $form['uwauth_general'] = [
       '#type' => 'details',
       '#title' => $this->t('General'),
@@ -270,7 +271,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
       '#type' => 'details',
       '#title' => $this->t('Group to Role Mapping'),
       '#description' => $this->t('For group source portability, groups are mapped to roles. Each group can be mapped to a single role.'),
-      '#open' => in_array($groupSource, [static::SYNC_AD, static::SYNC_GROUPS]),
+      '#open' => \in_array($groupSource, [static::SYNC_AD, static::SYNC_GROUPS]),
     ];
 
     $form['uwauth_map']['map'] = [
@@ -287,7 +288,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function validateForm(array &$form, FormStateInterface $form_state) {
+  public function validateForm(array &$form, FormStateInterface $form_state): void {
     $baseDn = $form_state->getValue('basedn');
     $bindDn = $form_state->getValue('binddn');
     $caCert = $form_state->getValue('cacert');
@@ -297,48 +298,48 @@ class UwAuthSettingsForm extends ConfigFormBase {
     $source = $form_state->getValue('source');
     $uri = $form_state->getValue('uri');
 
-    if (($source == static::SYNC_AD) && ((strlen($uri) == 0) || (strlen($baseDn) == 0))) {
+    if (($source == static::SYNC_AD) && (($uri == '') || ($baseDn == ''))) {
       $form_state->setErrorByName('source', $this->t('Active Directory requires both the URI and Base DN to be configured.'));
     }
 
-    if (($source == static::SYNC_GROUPS) && ((strlen($cert) == 0) || (strlen($key) == 0) || (strlen($caCert) == 0))) {
+    if (($source == static::SYNC_GROUPS) && (($cert == '') || ($key == '') || ($caCert == ''))) {
       $form_state->setErrorByName('source', $this->t('Groups Web Service requires the Certificate, Key, and CA Certificate to be configured.'));
     }
 
-    if ((strlen($cert) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $cert)) {
+    if (($cert != '') && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $cert)) {
       $form_state->setErrorByName('cert', $this->t('The Certificate path contains invalid characters.'));
     }
-    elseif ((strlen($cert) > 0) && !is_readable($cert)) {
+    elseif (($cert != '') && !is_readable($cert)) {
       $form_state->setErrorByName('cert', $this->t('The Certificate file could not be read. Please verify the path is correct.'));
     }
 
-    if ((strlen($key) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $key)) {
+    if (($key != '') && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $key)) {
       $form_state->setErrorByName('key', $this->t('The Key path contains invalid characters.'));
     }
-    elseif ((strlen($key) > 0) && !is_readable($key)) {
+    elseif (($key != '') && !is_readable($key)) {
       $form_state->setErrorByName('key', $this->t('The Key file could not be read. Please verify the path is correct.'));
     }
 
-    if ((strlen($caCert) > 0) && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $caCert)) {
+    if (($caCert != '') && preg_match_all("/[^a-zA-Z0-9_\-\/:\\. ]/", $caCert)) {
       $form_state->setErrorByName('cacert', $this->t('The CA Certificate path contains invalid characters.'));
     }
-    elseif ((strlen($caCert) > 0) && !is_readable($caCert)) {
+    elseif (($caCert != '') && !is_readable($caCert)) {
       $form_state->setErrorByName('cacert', $this->t('The CA Certificate file could not be read. Please verify the path is correct.'));
     }
 
-    if ((strlen($uri) > 0) && (preg_match("/^(ldap:\/\/|ldaps:\/\/)[a-z0-9_\.\-]*[a-z0-9]$/i", $uri) === 0)) {
+    if (($uri != '') && (preg_match("/^(ldap:\/\/|ldaps:\/\/)[a-z0-9_\.\-]*[a-z0-9]$/i", $uri) === 0)) {
       $form_state->setErrorByName('uri', $this->t('The LDAP URI contains invalid characters or formatting.'));
     }
 
-    if ((strlen($baseDn) > 0) && (preg_match("/^(OU=|DC=)[a-z0-9_\-=, ]*[a-z0-9]$/i", $baseDn) === 0)) {
+    if (($baseDn != '') && (preg_match("/^(OU=|DC=)[a-z0-9_\-=, ]*[a-z0-9]$/i", $baseDn) === 0)) {
       $form_state->setErrorByName('basedn', $this->t('The Base DN contains invalid characters or formatting.'));
     }
 
-    if ((strlen($bindDn) > 0) && (preg_match("/^CN=[a-z0-9_\-=, ]*[a-z0-9]$/i", $bindDn) === 0)) {
+    if (($bindDn != '') && (preg_match("/^CN=[a-z0-9_\-=, ]*[a-z0-9]$/i", $bindDn) === 0)) {
       $form_state->setErrorByName('binddn', $this->t('The Bind DN contains invalid characters or formatting.'));
     }
 
-    if ((strlen($map) > 0) && preg_match_all("/^([^a-z0-9_\-]*\|[a-z0-9_\-]*|[a-z0-9_\-]*\|[^a-z0-9_\-]*)$/mi", $map)) {
+    if (($map != '') && preg_match_all("/^([^a-z0-9_\-]*\|[a-z0-9_\-]*|[a-z0-9_\-]*\|[^a-z0-9_\-]*)$/mi", $map)) {
       $form_state->setErrorByName('map', $this->t('The Group Map contains invalid characters or formatting.'));
     }
 
@@ -357,20 +358,19 @@ class UwAuthSettingsForm extends ConfigFormBase {
    * @param string $key
    *   The key for the value in form state.
    *
-   * @return arraystring
-   *   The value as an array of single-line, non empty strings.
+   * @return array
+   *   The value as an array of single-line, non-empty strings.
    */
-  public static function getTextFromValues(FormStateInterface $form_state, $key) {
+  public static function getTextFromValues(FormStateInterface $form_state, string $key): array {
     $rawValue = $form_state->getValue($key);
     $arrayValue = explode("\n", "$rawValue\n");
-    $ret = array_filter(array_map('trim', $arrayValue));
-    return $ret;
+    return array_filter(array_map('trim', $arrayValue));
   }
 
   /**
    * {@inheritdoc}
    */
-  public function submitForm(array &$form, FormStateInterface $form_state) {
+  public function submitForm(array &$form, FormStateInterface $form_state): void {
     $allowedAttributes = static::getTextFromValues($form_state, 'allowed_attributes');
     $excludedRoutes = static::getTextFromValues($form_state, 'excluded_routes');
     $validDomains = static::getTextFromValues($form_state, 'valid_domains');
@@ -387,7 +387,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
       ->set('ad.uri', $form_state->getValue('uri'))
       ->set('ad.basedn', $form_state->getValue('basedn'))
       ->set('ad.binddn', $form_state->getValue('binddn'));
-    if (($this->settings->get('ad.bindpass') === NULL) || (strlen($form_state->getValue('bindpass')) > 0)) {
+    if (($this->settings->get('ad.bindpass') === NULL) || ($form_state->getValue('bindpass') != '')) {
       $this->settings->set('ad.bindpass', $form_state->getValue('bindpass'));
     }
     $this->settings->set('group.map', $form_state->getValue('map'))
