@@ -21,6 +21,8 @@ class LogoutController extends ControllerBase {
    *
    * @return array
    *   A render array.
+   *
+   * @todo user_logout will be deprecated in 11.0.
    */
   public function logout(): array {
     $title = $this->t('Logout');

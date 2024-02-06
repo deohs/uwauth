@@ -10,6 +10,7 @@ use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\user\Entity\User;
+use Drupal\user\RoleInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Routing\LocalRedirectResponse;
 use Drupal\uwauth\Debug;
@@ -143,7 +144,9 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     if (!\in_array($domain, $validDomains)) {
       $mail = "$username@uwauth.invalid";
     }
-    $account = User::create([
+    $user_storage = $this->entityTypeManager->getStorage('user');
+    /** @var \Drupal\user\UserInterface $account */
+    $account = $user_storage->create([
       'init' => $mail,
       'mail' => $mail,
       'name' => $username,
@@ -298,7 +301,9 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     return reset($accounts);
   }
 
-
+  /**
+   * {@inheritdoc}
+   */
   public function handle(RequestEvent $event): void {
     $this->debug->message($this->t('User id: @id', ['@id' => $this->currentUser->id()]));
     if ($this->isLoggedIn()
@@ -470,7 +475,11 @@ class UwAuthSubscriber implements EventSubscriberInterface {
       return;
     }
 
-    $roles_existing = user_roles(TRUE);
+    $roles = $this->entityTypeManager->getStorage('user_role')->loadMultiple();
+    if (!empty($roles) && isset($roles[RoleInterface::ANONYMOUS_ID])) {
+      unset($roles[RoleInterface::ANONYMOUS_ID]);
+    }
+    $roles_existing = \array_keys($roles);
     $roles_assigned = $account->getRoles(TRUE);
     $mapped_roles = $this->mapGroupsRoles($account);
 
