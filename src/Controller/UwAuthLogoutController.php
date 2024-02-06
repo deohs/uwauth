@@ -12,6 +12,8 @@ class UwAuthLogoutController extends ControllerBase {
 
   /**
    * Log user out of Drupal, and redirect to web login.
+   *
+   * @todo user_logout will be deprecated in 11.0.
    */
   public function logout(): TrustedRedirectResponse {
     user_logout();
