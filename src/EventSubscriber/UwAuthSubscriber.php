@@ -492,7 +492,7 @@ class UwAuthSubscriber implements EventSubscriberInterface {
 
     // Add to newly assigned roles.
     foreach ($mapped_roles as $mapped) {
-      if (\array_key_exists($mapped, $roles_existing)) {
+      if (\in_array($mapped, $roles_existing)) {
         $account->addRole($mapped);
       }
     }
