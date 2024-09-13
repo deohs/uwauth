@@ -4,25 +4,26 @@ namespace Drupal\uwauth\EventSubscriber;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\PageCache\ResponsePolicy\KillSwitch;
 use Drupal\Core\Routing\CurrentRouteMatch;
+use Drupal\Core\Routing\LocalRedirectResponse;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\user\Entity\User;
 use Drupal\user\RoleInterface;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Routing\LocalRedirectResponse;
+use Drupal\user\UserInterface;
 use Drupal\uwauth\Debug;
 use Drupal\uwauth\Form\UwAuthSettingsForm;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBag;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
-use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
-use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
  * UW Auth event subscriber.
@@ -463,10 +464,10 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   /**
    * Synchronize roles with UW Groups or Active Directory.
    *
-   * @param \Drupal\Core\Session\AccountInterface $account
+   * @param \Drupal\user\UserInterface $account
    *   A user object.
    */
-  private function syncRoles(AccountInterface $account): void {
+  private function syncRoles(UserInterface $account): void {
     // Local groups do not need to be resynchronized.
     if ($this->settings->get('group.source') == UwAuthSettingsForm::SYNC_LOCAL) {
       $this->logger->log($this->severity['local_sync'], 'Used local roles for {name}: no sync.', [
