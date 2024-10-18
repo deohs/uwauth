@@ -19,7 +19,7 @@ function uwauth_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<p>' . t('From here you can specify what your group membership source is. By default, this will be set to None, which effectively disables the module. To minimize issues, select your group membership source after you have created your roles, mapped them, and configured the group source.') . '</p>';
       $output .= '<p>' . t('At any time if you wish to disable the module, you can do so by setting the source to None. This change will disable it, without erasing the module configuration.') . '</p>';
       $output .= '<h3>' . t('Groups Web Service') . '</h3>';
-      $output .= '<p>' . t('GWS offers a centralized system for managing user groups at UW. In order to utilize it, you will need a certificate issued by UW CA to authenticate your application with the web service. This certificate is different from the InCommon certificate issued for web servers.') . '</p>';
+      $output .= '<p>' . t('GWS offers a centralized system for managing user groups at UW. In order to utilize it, you will need a certificate issued by UW CA to authenticate your application with the web service.') . '</p>';
       $output .= '<h3>' . t('Active Directory') . '</h3>';
       $output .= '<p>' . t('With AD, you can utilize either NETID or a departmental AD infrastructure. Both authenticated, and anonymous binds are supported. It is recommended that you use LDAPS whenever possible, and it is required when using NETID. You may need to configure OpenLDAP to load the required CA certificates, if using LDAPS.') . '</p>';
       $output .= '<h3>' . t('Group to Role Mapping') . '</h3>';

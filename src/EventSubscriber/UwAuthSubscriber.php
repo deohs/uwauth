@@ -210,32 +210,30 @@ class UwAuthSubscriber implements EventSubscriberInterface {
     $username = $account->getAccountName();
 
     // UW GWS URL.
-    $uwgws_url = 'https://iam-ws.u.washington.edu/group_sws/v1/search?member=' . $username . '&type=effective&scope=all';
+    $uwgws_url = 'https://groups.uw.edu/group_sws/v3/search?member=' . $username . '&type=effective&scope=all';
 
     // Query UW GWS for group membership.
-    $uwgws = curl_init();
-    curl_setopt_array($uwgws, [
+    $uwgws = \curl_init();
+    \curl_setopt_array($uwgws, [
       CURLOPT_RETURNTRANSFER => TRUE,
       CURLOPT_FOLLOWLOCATION => TRUE,
       CURLOPT_SSLCERT        => $this->settings->get('gws.cert'),
       CURLOPT_SSLKEY         => $this->settings->get('gws.key'),
-      CURLOPT_CAINFO         => $this->settings->get('gws.cacert'),
       CURLOPT_URL            => $uwgws_url,
     ]);
-    $uwgws_response = curl_exec($uwgws);
-    curl_close($uwgws);
+    $uwgws_response = \curl_exec($uwgws);
+    \curl_close($uwgws);
 
     // Extract groups from response.
-    $uwgws_feed = simplexml_load_string(str_replace('xmlns=', 'ns=', $uwgws_response));
-    $uwgws_entries = $uwgws_feed->xpath("//a[@class='name']");
+    $uwgws_feed = \json_decode($uwgws_response, TRUE);
     $uwgws_groups = [];
-    foreach ($uwgws_entries as $uwgws_entry) {
-      $uwgws_groups[] = (string) $uwgws_entry[0];
+    if (isset($uwgws_feed['data'])) {
+      $uwgws_groups = \array_column($uwgws_feed['data'], 'id');
     }
 
-    $this->logger->log($this->severity['ad_sync'], 'Fetched groups from GWS for {name}: got {groups}.', [
+    $this->logger->log($this->severity['ad_sync'], 'Fetched groups from GWS V3 API for {name}: got {groups}.', [
       'name' => $account->getDisplayName(),
-      'groups' => implode(', ', $uwgws_groups),
+      'groups' => \implode(', ', $uwgws_groups),
     ]);
 
     return $uwgws_groups;
