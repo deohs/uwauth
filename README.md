@@ -108,6 +108,9 @@ For Drupal core versions 8.0.x < 8.8.3 use version v2.2.0 (8.x-2.2).
 
 For Drupal core versions >= 8.8.3, including Drupal 9, use v.3.0.0 or later.
 
+### API Version
+
+Version 4.x uses the UW Groups API version 3; previous releases use the version 1 API that was deprecated in 2019.
 
 
 ## Federation
