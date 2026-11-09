@@ -9,6 +9,7 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Configure UwAuth settings for this site.
@@ -35,6 +36,7 @@ class UwAuthSettingsForm extends ConfigFormBase {
   public function __construct(
     ConfigFactoryInterface $configFactory,
     TypedConfigManagerInterface $typedConfigManager,
+    #[Autowire(service: 'logger.channel.uwauth')]
     protected LoggerInterface $logger,
     protected AccountProxyInterface $account,
   ) {
