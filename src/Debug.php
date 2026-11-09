@@ -3,25 +3,12 @@
 namespace Drupal\uwauth;
 
 use Drupal\Core\Messenger\MessengerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Class Debug provides configurable debug information.
  */
 class Debug {
-
-  /**
-   * Debug flag.
-   *
-   * @var bool
-   */
-  protected bool $verbose;
-
-  /**
-   * The Messenger service.
-   *
-   * @var \Drupal\Core\Messenger\MessengerInterface
-   */
-  protected MessengerInterface $messenger;
 
   /**
    * Debug constructor.
@@ -31,10 +18,12 @@ class Debug {
    * @param bool $verbose
    *   Display debug information?
    */
-  public function __construct(MessengerInterface $messenger, bool $verbose = FALSE) {
-    $this->messenger = $messenger;
-    $this->verbose = $verbose;
-  }
+  public function __construct(
+    #[Autowire(service: 'messenger')]
+    protected MessengerInterface $messenger,
+    #[Autowire(value: '%uwauth.verbose%')]
+    protected bool $verbose = FALSE,
+  ) {}
 
   /**
    * Display diagnostic information if enabled.

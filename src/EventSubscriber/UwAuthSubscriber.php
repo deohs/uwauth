@@ -17,6 +17,7 @@ use Drupal\user\UserInterface;
 use Drupal\uwauth\Debug;
 use Drupal\uwauth\Form\UwAuthSettingsForm;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -29,42 +30,8 @@ use Symfony\Component\HttpKernel\KernelEvents;
  * UW Auth event subscriber.
  */
 class UwAuthSubscriber implements EventSubscriberInterface {
+
   use StringTranslationTrait;
-
-  /**
-   * The current_user service.
-   */
-  protected AccountProxyInterface $currentUser;
-
-  /**
-   * A diagnostic display service.
-   */
-  protected Debug $debug;
-
-  /**
-   * The entity manager.
-   */
-  protected EntityTypeManagerInterface $entityTypeManager;
-
-  /**
-   * The page_cache_kill_switch service.
-   */
-  protected KillSwitch $killSwitch;
-
-  /**
-   * The logger.channel.uwauth service.
-   */
-  protected LoggerInterface $logger;
-
-  /**
-   * The request.
-   */
-  protected RequestStack $requestStack;
-
-  /**
-   * The current_route_match service.
-   */
-  protected CurrentRouteMatch $route;
 
   /**
    * The module settings.
@@ -72,16 +39,11 @@ class UwAuthSubscriber implements EventSubscriberInterface {
   protected ImmutableConfig $settings;
 
   /**
-   * A hash of severity level by group sync method.
-   */
-  protected array $severity;
-
-  /**
    * Constructs a UW Auth event subscriber.
    *
    * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
    *   The request.
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_manager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity manager service.
    * @param \Drupal\uwauth\Debug $debug
    *   A diagnostic display service.
@@ -99,25 +61,26 @@ class UwAuthSubscriber implements EventSubscriberInterface {
    *   The severity levels to use for each role sync method.
    */
   public function __construct(
-    RequestStack $requestStack,
-    EntityTypeManagerInterface $entity_manager,
-    Debug $debug,
-    AccountProxyInterface $currentUser,
-    ConfigFactoryInterface $config,
-    KillSwitch $killSwitch,
-    CurrentRouteMatch $route,
-    LoggerInterface $logger,
-    array $severity,
+    #[Autowire(service: 'request_stack')]
+    protected RequestStack $requestStack,
+    #[Autowire(service: 'entity_type.manager')]
+    protected EntityTypeManagerInterface $entityTypeManager,
+    #[Autowire(service: 'uwauth.debug')]
+    protected Debug $debug,
+    #[Autowire(service: 'current_user')]
+    protected AccountProxyInterface $currentUser,
+    #[Autowire(service: 'config.factory')]
+    protected ConfigFactoryInterface $config,
+    #[Autowire(service: 'page_cache_kill_switch')]
+    protected KillSwitch $killSwitch,
+    #[Autowire(service: 'current_route_match')]
+    protected CurrentRouteMatch $route,
+    #[Autowire(service: 'logger.channel.uwauth')]
+    protected LoggerInterface $logger,
+    #[Autowire(value: '%uwauth.severity%')]
+    protected array $severity,
   ) {
-    $this->currentUser = $currentUser;
-    $this->debug = $debug;
-    $this->entityTypeManager = $entity_manager;
-    $this->killSwitch = $killSwitch;
-    $this->logger = $logger;
-    $this->requestStack = $requestStack;
-    $this->route = $route;
     $this->settings = $config->get(UwAuthSettingsForm::SETTINGS_NAME);
-    $this->severity = $severity;
   }
 
   /**
