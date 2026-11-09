@@ -1,4 +1,5 @@
 parameters:
+  uwauth.skip_procedural_hook_scan: true
   uwauth.channel: 'uwauth'
   uwauth.severity:
     ad_sync: 'debug'
@@ -7,32 +8,13 @@ parameters:
   uwauth.verbose: false
 
 services:
+  _defaults:
+    autoconfigure: true
+    autowire: true
   logger.channel.uwauth:
     parent: 'logger.channel_base'
     arguments: ['%uwauth.channel%']
-
-  uwauth.eventsubscriber:
-    class: Drupal\uwauth\EventSubscriber\UwAuthSubscriber
-    arguments:
-      - '@request_stack'
-      - '@entity_type.manager'
-      - '@uwauth.debug'
-      - '@current_user'
-      - '@config.factory'
-      - '@page_cache_kill_switch'
-      - '@current_route_match'
-      - '@logger.channel.uwauth'
-      - '%uwauth.severity%'
-    tags:
-      - { name: event_subscriber }
-
   uwauth.debug:
     class: Drupal\uwauth\Debug
-    arguments:
-      - '@messenger'
-      - '%uwauth.verbose%'
-
-  uwauth.logout_override:
-    class: Drupal\uwauth\EventSubscriber\LogoutOverride
-    tags:
-      - { name: event_subscriber }
+  Drupal\uwauth\EventSubscriber\LogoutOverride: ~
+  Drupal\uwauth\EventSubscriber\UwAuthSubscriber: ~

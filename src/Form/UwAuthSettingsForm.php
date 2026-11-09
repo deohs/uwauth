@@ -4,36 +4,24 @@ namespace Drupal\uwauth\Form;
 
 use Drupal\Core\Config\Config;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Configure UwAuth settings for this site.
  */
 class UwAuthSettingsForm extends ConfigFormBase {
+
   public const SETTINGS_NAME = 'uwauth.settings';
   public const DEFAULT_SP_ENDPOINT = '/Shibboleth.sso';
   public const SYNC_AD = 'ad';
   public const SYNC_GROUPS = 'gws';
   public const SYNC_LOCAL = 'local';
   public const SYNC_NONE = 'none';
-
-  /**
-   * The current_user service.
-   *
-   * @var \Drupal\Core\Session\AccountProxyInterface
-   */
-  protected AccountProxyInterface $account;
-
-  /**
-   * The logger_channel.uwauth service.
-   *
-   * @var \Psr\Log\LoggerInterface
-   */
-  protected LoggerInterface $logger;
 
   /**
    * The module settings.
@@ -45,22 +33,15 @@ class UwAuthSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function __construct(ConfigFactoryInterface $configFactory, LoggerInterface $logger, AccountProxyInterface $account) {
-    parent::__construct($configFactory);
-    $this->account = $account;
-    $this->logger = $logger;
+  public function __construct(
+    ConfigFactoryInterface $configFactory,
+    TypedConfigManagerInterface $typedConfigManager,
+    #[Autowire(service: 'logger.channel.uwauth')]
+    protected LoggerInterface $logger,
+    protected AccountProxyInterface $account,
+  ) {
+    parent::__construct($configFactory, $typedConfigManager);
     $this->settings = $this->config(static::SETTINGS_NAME);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function create(ContainerInterface $container): self {
-    return new static(
-      $container->get('config.factory'),
-      $container->get('logger.channel.uwauth'),
-      $container->get('current_user')
-    );
   }
 
   /**

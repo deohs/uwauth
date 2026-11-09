@@ -22,7 +22,8 @@ class LogoutController extends ControllerBase {
    * @return array
    *   A render array.
    *
-   * @todo user_logout will be deprecated in 11.0.
+   * @todo user_logout will be deprecated in 12.0.
+   * @see https://www.drupal.org/node/3379194
    */
   public function logout(): array {
     $title = $this->t('Logout');
@@ -61,7 +62,9 @@ class LogoutController extends ControllerBase {
         'style' => 'visibility: hidden',
       ],
     ];
+
     user_logout();
+
     return $ret;
   }
 
