@@ -1,4 +1,5 @@
 parameters:
+  uwauth.skip_procedural_hook_scan: true
   uwauth.channel: 'uwauth'
   uwauth.severity:
     ad_sync: 'debug'
