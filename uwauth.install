@@ -6,27 +6,8 @@
  */
 
 /**
- * Update 2.1 schema to 2.2 schema with UW defaults.
+ * Implements hook_update_last_removed().
  */
-function uwauth_update_8001(): void {
-  $config_factory = \Drupal::configFactory();
-  $config = $config_factory->getEditable('uwauth.settings');
-  $config->set('mail', ['valid_domains' => ['uw.edu']]);
-  $config->set('auth', [
-    'allowed_attributes' => [
-      'cn',
-      'employeeType',
-      'givenName',
-      'sn',
-      'uid',
-      'uwnetid',
-    ],
-    'excluded_routes' => [
-      'user.login',
-      'user.logout',
-    ],
-    'name_id' => 'uwnetid',
-    'sp_endpoint' => '/Shibboleth.sso',
-  ]);
-  $config->save();
+function uwauth_update_last_removed(): int {
+  return 8001;
 }
